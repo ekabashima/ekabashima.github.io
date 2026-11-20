@@ -143,7 +143,10 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 
 .faixas { display: grid; gap: 6px; }
 .faixa { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 6px; align-items: center; }
-.alerta-linha { display: grid; grid-template-columns: 96px minmax(0,1fr) auto auto auto; gap: 6px; align-items: center; }
+/* Duas linhas: condição, valor e cor do número em cima; fundo, piscar e remover embaixo (o painel lateral é estreito) */
+.alerta-linha { display: grid; grid-template-columns: 112px minmax(72px, 1fr) auto; gap: 6px; align-items: center;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.alerta-linha .fundo-cor { grid-column: 1 / 3; flex-wrap: wrap; }
 .faixa-barra { height: 10px; border-radius: 3px; display: flex; overflow: hidden; border: 1px solid var(--line); }
 
 .secao { display: grid; gap: 10px; padding-top: 4px; }
@@ -206,8 +209,6 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 .confirmar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--surface-2); padding: 8px 10px; border-radius: 8px; }
 @media (max-width: 520px) {
   .grade.g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .alerta-linha { grid-template-columns: 86px minmax(0,1fr) auto auto; }
-  .alerta-linha .fundo-cor { grid-column: 1 / -1; }
   .saida { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .byte { transition: none; } }
@@ -1215,7 +1216,9 @@ function alertasEditor(w) {
         el("span", { class: "linha fundo-cor" }, el("label", { class: "check" }, usaF, "fundo"), fc, el("label", { class: "check" }, pis, "piscar")),
         el("button", { class: "ghost", "aria-label": "Remover alerta", onclick: () => { w.alertas.splice(i, 1); lista(); salvarRascunho(); } }, "Remover")));
     });
-    if (w.alertas.length < 3) box.append(el("button", { onclick: () => { w.alertas.push({ acima: val(w, "max") * .9, cor: "#ffffff", fundo: "#991b1b", piscar: true }); lista(); salvarRascunho(); } }, "Adicionar alerta"));
+    // Rpm começa no vermelho da faixa do carro; o resto, em 90% do máximo do widget
+    const limitePadrao = () => w.sinal === "rpm" ? faixaRpm().vermelho_acima : Math.round(val(w, "max") * .9);
+    if (w.alertas.length < 3) box.append(el("button", { onclick: () => { w.alertas.push({ acima: limitePadrao(), cor: "#ffffff", fundo: "#991b1b", piscar: true }); lista(); salvarRascunho(); } }, "Adicionar alerta"));
   };
   lista();
   return el("div", { class: "secao" }, el("h3", {}, "Alertas"), el("p", { class: "muted small" }, "O primeiro alerta que bater muda a cor do número e, se marcado, o fundo."), box);
