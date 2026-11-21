@@ -1,6 +1,6 @@
 // Service worker do Monitor Veicular: guarda o app no celular para abrir sem internet.
 // A cada versão publicada, mude VERSAO para o celular trocar o cache antigo.
-const VERSAO = "2026-11-20.2";
+const VERSAO = "2026-11-20.3";
 const CACHE_APP = "painel-rally-app-" + VERSAO;
 const CACHE_FONTES = "painel-rally-fontes";
 const ARQUIVOS = [
@@ -14,7 +14,8 @@ const ARQUIVOS = [
 ];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE_APP).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+  // "reload": busca no servidor, sem usar a cópia de até 10 min que o navegador guarda do GitHub Pages
+  e.waitUntil(caches.open(CACHE_APP).then(c => c.addAll(ARQUIVOS.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
@@ -52,7 +53,7 @@ self.addEventListener("fetch", e => {
   // Página do app: tenta a versão nova por 3 s; sem rede, abre a guardada
   if (req.mode === "navigate") {
     e.respondWith(
-      comPrazo(fetch(req), 3000)
+      comPrazo(fetch(req, { cache: "no-cache" }), 3000)
         .then(r => { if (r.ok) caches.open(CACHE_APP).then(c => c.put("./index.html", r.clone())); return r; })
         .catch(() => caches.match("./index.html", { ignoreSearch: true }))
     );
