@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Painel Rally",
-  "short_name": "Painel Rally",
-  "description": "Painel de instrumentos para rally: lê o carro por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.",
+  "name": "Monitor Veicular",
+  "short_name": "Monitor Veicular",
+  "description": "Painel de instrumentos do carro: lê a central por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

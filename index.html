@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Painel Rally</title>
-<meta name="description" content="Painel de instrumentos para rally: lê o carro por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.">
+<title>Monitor Veicular</title>
+<meta name="description" content="Monitor Veicular, painel de instrumentos do carro: lê a central por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
@@ -213,7 +213,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 }
 @media (prefers-reduced-motion: reduce) { .byte { transition: none; } }
 
-/* Navegação entre as 3 páginas: trilho à esquerda com o celular deitado, barra embaixo em pé */
+/* Navegação entre as páginas: trilho à esquerda com o celular deitado, barra embaixo em pé */
 :root { --nav-l: calc(84px + env(safe-area-inset-left, 0px)); --nav-b: calc(62px + env(safe-area-inset-bottom, 0px)); }
 .nav { position: fixed; z-index: 35; display: flex; gap: 4px; background: #0b0f14; }
 .nav button { flex: 1 1 0; display: grid; place-items: center; align-content: center; gap: 3px; min-height: 0; padding: 6px 2px; border: 0; border-radius: 10px;
@@ -229,7 +229,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 @media (orientation: landscape) {
   .nav { top: 0; bottom: 0; left: 0; width: var(--nav-l); flex-direction: column; border-right: 1px solid #1f2730;
     padding: calc(8px + env(safe-area-inset-top, 0px)) 6px calc(8px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); }
-  .nav button { flex: 0 0 74px; }
+  .nav button { flex: 0 1 74px; min-height: 50px; }
   .nav .rec { margin-top: auto; }
   body { padding-left: calc(var(--nav-l) + 16px); }
   .vista-painel { left: var(--nav-l) !important; }
@@ -275,7 +275,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
   <section class="col-preview" aria-label="Prévia do painel">
     <header class="top">
       <div class="brand">
-        <h1>Painel Rally</h1>
+        <h1>Monitor Veicular</h1>
         <span id="modo" class="chip">Desconectado</span>
       </div>
       <div class="acoes">
@@ -340,12 +340,12 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
           <button id="lay-apagar" class="danger ghost">Apagar</button>
         </div>
         <div id="lay-acao"></div>
-        <p class="muted small" id="lay-salvo">Cada layout tem as telas das duas páginas. As alterações ficam salvas no celular, no layout escolhido.</p>
+        <p class="muted small" id="lay-salvo">Cada layout tem as telas das três páginas do painel. As alterações ficam salvas no celular, no layout escolhido.</p>
       </div>
       <div class="secao">
         <div class="linha"><span class="muted small">Página</span>
           <div class="seg" id="ed-pg" role="group" aria-label="Página que está sendo editada">
-            <button data-edpg="rt" aria-pressed="true">Real Time</button><button data-edpg="comp" aria-pressed="false">Complementar</button>
+            <button data-edpg="rt" aria-pressed="true">Principal</button><button data-edpg="comp" aria-pressed="false">Página 01</button><button data-edpg="p2" aria-pressed="false">Página 02</button>
           </div>
         </div>
         <div class="linha" id="telas-chips"></div>
@@ -396,7 +396,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
         <div class="grade">
           <label class="campo"><span>Adaptador</span><select id="c-conexao">
             <option value="elm327">Adaptador OBD ELM327 Bluetooth (BLE)</option>
-            <option value="ponte">Ponte Painel Rally (ESP32)</option>
+            <option value="ponte">Ponte própria (ESP32)</option>
             <option value="simulacao">Nenhum (só simulação)</option>
           </select></label>
           <label class="campo"><span>Velocidade do CAN</span><select id="c-kbps">
@@ -425,7 +425,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
       </div>
       <div class="secao">
         <h2>Alertas</h2>
-        <p class="muted small">Quando um alerta dispara, aparece uma faixa vermelha piscando no alto do Real Time e da Complementar, com som e vibração. Toque na faixa para silenciar até o alerta passar.</p>
+        <p class="muted small">Quando um alerta dispara, aparece uma faixa vermelha piscando no alto das páginas do painel (Principal, Página 01 e Página 02), com som e vibração. Toque na faixa para silenciar até o alerta passar.</p>
         <div class="linha">
           <label class="check"><input type="checkbox" id="al-som"> Som</label>
           <label class="check"><input type="checkbox" id="al-vibrar"> Vibrar</label>
@@ -613,8 +613,9 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
   <div id="p-menu" class="p-menu" hidden></div>
 </div>
 <nav id="nav" class="nav" aria-label="Páginas">
-  <button data-pg="rt" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/><path d="M4 18h16"/></svg>Real Time</button>
-  <button data-pg="comp" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Complementar</button>
+  <button data-pg="rt" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/><path d="M4 18h16"/></svg>Principal</button>
+  <button data-pg="comp" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Página 01</button>
+  <button data-pg="p2" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1"/><rect x="9.5" y="4" width="5" height="5" rx="1"/><rect x="16" y="4" width="5" height="5" rx="1"/><rect x="3" y="15" width="5" height="5" rx="1"/><rect x="9.5" y="15" width="5" height="5" rx="1"/><rect x="16" y="15" width="5" height="5" rx="1"/></svg>Página 02</button>
   <button data-pg="cfg" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Configuração</button>
   <button id="nav-rec" class="rec" aria-pressed="false"><span class="ponto" aria-hidden="true"></span><span id="nav-rec-txt">Log</span></button>
 </nav>
@@ -783,11 +784,14 @@ function sinaisNecessarios() {
   for (let k = 0; k < 3; k++) for (const c of cfg.calculados || []) if (s.has(c.sinal)) depsCalc(c).forEach(d => s.add(d));
   return s;
 }
-// As duas páginas de monitor (Real Time e Complementar) têm telas próprias no mesmo layout
+// As páginas de monitor (Principal, Página 01 e Página 02) têm telas próprias no mesmo layout
+const PAGINAS = { rt: { nome: "Principal", campo: "telas" }, comp: { nome: "Página 01", campo: "telas_comp" }, p2: { nome: "Página 02", campo: "telas_p2" } };
 let pgMon = "rt", pgEd = "rt";
-const pIdxs = { rt: 0, comp: 0 };
-const telasDe = pg => pg === "comp" ? (lay.telas_comp = lay.telas_comp || []) : lay.telas;
-const nomePg = pg => pg === "comp" ? "Complementar" : "Real Time";
+const pIdxs = { rt: 0, comp: 0, p2: 0 };
+const zerarPIdxs = () => { for (const k of Object.keys(PAGINAS)) pIdxs[k] = 0; };
+const telasDe = pg => { const c = (PAGINAS[pg] || PAGINAS.rt).campo; return c === "telas" ? lay.telas : (lay[c] = lay[c] || []); };
+const nomePg = pg => (PAGINAS[pg] || PAGINAS.rt).nome;
+const todasTelas = l => [...(l.telas || []), ...(l.telas_comp || []), ...(l.telas_p2 || [])];
 const sinaisDasTelas = telas => { const s = new Set(); for (const t of telas || []) for (const w of t.widgets || []) { if (w.sinal) s.add(w.sinal); if (w.tipo === "hodometro") s.add("hodometro"); } return s; };
 
 function desenharWidget(g, w) {
@@ -1073,7 +1077,7 @@ const ROTULO_CURTO = { rpm: "RPM", velocidade: "VELOCIDADE", temp_motor: "TEMP. 
 const rotuloCurto = it => ROTULO_CURTO[it.sinal] || String(it.rotulo || it.sinal).toUpperCase().slice(0, 18);
 const casasItem = it => it.sinal === "hodometro_dif" ? 1 : it.sinal === "pressao_trilho" ? 0 : ({ bar: 2, km: 2, "g/s": 1, "L/h": 1, V: 1 }[it.unidade] ?? 0);
 function escalaItem(it) {
-  if (it.sinal === "rpm") { let mx = 0; for (const t of [...lay.telas, ...telasDe("comp")]) for (const w of t.widgets) if (w.tipo === "barra_rpm" && w.sinal === "rpm") mx = Math.max(mx, w.max || 0); return [0, mx || 4500]; }
+  if (it.sinal === "rpm") { let mx = 0; for (const t of todasTelas(lay)) for (const w of t.widgets) if (w.tipo === "barra_rpm" && w.sinal === "rpm") mx = Math.max(mx, w.max || 0); return [0, mx || 4500]; }
   if (it.sinal === "pressao_trilho") return [0, 2000];
   return { "°C": [40, 130], "%": [0, 100], bar: [0, 2.5], kPa: [0, 300], V: [10, 16], "km/h": [0, 180], "L/h": [0, 30], "g/s": [0, 200], m: [0, 30] }[it.unidade] || [0, 100];
 }
@@ -1334,7 +1338,7 @@ function montarReqs() {
     };
     det.append(el("div", { class: "grade" }, campoR("nome", "Nome"), campoR("cabecalho", "Cabeçalho (hex)"), campoR("servico", "Serviço (hex)"), campoR("pid", "PID (hex)"), campoR("periodo_ms", "Período (ms)", "number")));
     const at = el("input", { type: "checkbox" }); at.checked = r.ativo !== false; at.addEventListener("change", () => { r.ativo = at.checked; cfgMudou(); montarReqs(); });
-    const gr = el("select", { id: `r${i}-grupo` }, el("option", { value: "" }, "Tempo real: pedido sempre"), el("option", { value: "complementar" }, "Complementar: só quando estiver na tela, no log ou na página Complementar"));
+    const gr = el("select", { id: `r${i}-grupo` }, el("option", { value: "" }, "Tempo real: pedido sempre"), el("option", { value: "complementar" }, "Complementar: só quando estiver na página aberta ou no log"));
     gr.value = r.grupo === "complementar" ? "complementar" : ""; gr.addEventListener("change", () => { if (gr.value) r.grupo = gr.value; else delete r.grupo; cfgMudou(); montarReqs(); });
     det.append(el("div", { class: "grade" }, el("label", { class: "check" }, at, "Pedido ativo"), el("label", { class: "campo" }, el("span", {}, "Quando pedir"), gr)));
     r.saidas = r.saidas || [];
@@ -1447,7 +1451,7 @@ function validarLayout(l) {
   if (!l || !Array.isArray(l.telas) || !l.telas.length) return ["O layout precisa ter pelo menos uma tela"];
   if (l.telas.length > 4) erros.push("Máximo de 4 telas");
   const sinais = sinaisConhecidos();
-  [...(l.telas || []), ...(l.telas_comp || [])].forEach((t, i) => {
+  todasTelas(l).forEach((t, i) => {
     if (!Array.isArray(t.widgets)) { erros.push(`Tela ${i + 1} sem lista de widgets`); return; }
     if (t.widgets.length > 24) erros.push(`Tela ${i + 1} tem mais de 24 widgets`);
     t.widgets.forEach(w => {
@@ -1487,7 +1491,7 @@ function salvarRascunho() {
   const ser = {};
   for (const [id, p] of Object.entries(locais)) ser[id] = { config: p.config, layouts: p.layouts, layoutNome: p.layoutNome };
   try { localStorage.setItem(CHAVE, JSON.stringify({ v: 3, carroId, locais: ser })); } catch {}
-  const s = $("#lay-salvo"); if (s) s.textContent = `Salvo no celular às ${new Date().toLocaleTimeString("pt-BR")}, no layout "${locais[carroId].layoutNome}". Cada layout tem as telas das duas páginas.`;
+  const s = $("#lay-salvo"); if (s) s.textContent = `Salvo no celular às ${new Date().toLocaleTimeString("pt-BR")}, no layout "${locais[carroId].layoutNome}". Cada layout tem as telas das três páginas do painel.`;
 }
 function normalizarPerfil(p) {
   if (!p.layouts || !Object.keys(p.layouts).length) p.layouts = { "Padrão": p.layout };
@@ -1507,7 +1511,7 @@ function lerRascunho() {
   } catch {}
   return false;
 }
-// Telas da página Complementar montadas sozinhas: os itens que não estão no Real Time, 9 por tela
+// Telas da Página 01 montadas sozinhas: os itens que não estão no Principal, 9 por tela
 const ORDEM_COMP = ["turbo", "map", "carga", "pedal", "pressao_trilho", "temp_oleo", "temp_admissao", "maf", "consumo", "temp_escape", "temp_dpf", "pressao_dpf",
   "combustivel", "temp_ambiente", "pressao_atm", "luz_injecao", "codigos_falha", "tempo_partida", "re_tcm", "temp_extra", "entrada_2", "pulsos_vss", "tensao",
   "velocidade_gps", "gps_precisao", "hodometro_gps", "hodometro_dif_m", "hodometro_dif", "hodometro_total"];
@@ -1516,13 +1520,45 @@ function telasCompAuto(c, l) {
   const itens = catalogoSinais(c).filter(it => !rt.has(it.sinal) && it.sinal !== "marcha").sort((a, b) => pos(a.sinal) - pos(b.sinal));
   const telas = [];
   for (let k = 0; k < itens.length && telas.length < 4; k += 9)
-    telas.push({ nome: `Complementar ${telas.length + 1}`, fundo: "#05070a", widgets: itens.slice(k, k + 9).map((it, i) => ({
+    telas.push({ nome: `Tela ${telas.length + 1}`, fundo: "#05070a", widgets: itens.slice(k, k + 9).map((it, i) => ({
       tipo: "valor", x: 8 + (i % 3) * 264, y: 8 + Math.floor(i / 3) * 156, w: 256, h: 148, sinal: it.sinal, rotulo: rotuloCurto(it), unidade: it.unidade,
       casas: casasItem(it), tamanho_rotulo: 18, cor: "#f8fafc", fundo: "#0d1117", cor_apagado: "#1a1f27" })) });
-  if (!telas.length) telas.push({ nome: "Complementar 1", fundo: "#05070a", widgets: [] });
+  if (!telas.length) telas.push({ nome: "Tela 1", fundo: "#05070a", widgets: [] });
   return telas;
 }
-function garantirComp(l, c) { if (!Array.isArray(l.telas_comp) || !l.telas_comp.length) l.telas_comp = telasCompAuto(c, l); }
+// Página 02: temperaturas, combustível, consumo, bateria e códigos de erro, só números, 3 × 3
+const ITENS_P2 = [
+  { sinal: "temp_motor", rotulo: "TEMP. MOTOR", alerta: { acima: 106 } },
+  { sinal: "temp_cambio", rotulo: "TEMP. CÂMBIO", alerta: { acima: 115 } },
+  { sinal: "temp_ambiente", rotulo: "TEMP. AMBIENTE" },
+  { sinal: "combustivel", rotulo: "COMBUSTÍVEL", alerta: { abaixo: 15 } },
+  { sinal: "consumo", rotulo: "CONSUMO" },
+  { sinal: "tensao", rotulo: "BATERIA" },
+  { sinal: "codigos_falha", rotulo: "CÓD. DE ERRO" },
+  { sinal: "temp_admissao", rotulo: "TEMP. ADMISSÃO" },
+  { sinal: "temp_oleo", rotulo: "TEMP. ÓLEO" }
+];
+function telasP2Auto(c, l) {
+  const cat = catalogoSinais(c), existe = new Set(cat.map(it => it.sinal));
+  // O limite do alerta segue o que o carro já usa no Principal (ex.: 105 °C na Parati)
+  const limiteDoCarro = (sinal, k) => { for (const t of l.telas || []) for (const w of t.widgets || []) for (const a of w.sinal === sinal ? w.alertas || [] : []) if (a[k] !== undefined) return a[k]; };
+  const widgets = ITENS_P2.filter(d => existe.has(d.sinal)).map((d, i) => {
+    const it = cat.find(o => o.sinal === d.sinal);
+    const w = { tipo: "valor", x: 8 + (i % 3) * 264, y: 8 + Math.floor(i / 3) * 156, w: 256, h: 148, sinal: d.sinal, rotulo: d.rotulo, unidade: it.unidade,
+      casas: casasItem(it), tamanho_rotulo: 18, cor: "#f8fafc", fundo: "#0d1117", cor_apagado: "#1a1f27" };
+    if (d.alerta) {
+      const k = "acima" in d.alerta ? "acima" : "abaixo";
+      w.alertas = [{ [k]: limiteDoCarro(d.sinal, k) ?? d.alerta[k], cor: "#ffffff", fundo: "#991b1b", piscar: true }];
+    }
+    return w;
+  });
+  return [{ nome: "Motor", fundo: "#05070a", widgets }];
+}
+function garantirComp(l, c) {
+  if (!Array.isArray(l.telas_comp) || !l.telas_comp.length) l.telas_comp = telasCompAuto(c, l);
+  for (const t of l.telas_comp) if (/^Complementar \d+$/.test(t.nome || "")) t.nome = t.nome.replace("Complementar", "Tela");  // nome antigo da página
+  if (!Array.isArray(l.telas_p2) || !l.telas_p2.length) l.telas_p2 = telasP2Auto(c, l);
+}
 const layoutFabrica = () => { const l = clone((PERFIS_PADRAO[carroId] || PERFIS_PADRAO.pajero).layout); garantirComp(l, cfg); return l; };
 
 // ---------------- layouts salvos (aba Telas) ----------------
@@ -1535,7 +1571,7 @@ function montarLayouts() {
 function usarLayout(nome) {
   sincronizar();
   const p = locais[carroId]; p.layoutNome = nome; lay = p.layout = p.layouts[nome]; garantirComp(lay, cfg);
-  tIdx = 0; sel = -1; pIdx = 0; pIdxs.rt = pIdxs.comp = 0;
+  tIdx = 0; sel = -1; pIdx = 0; zerarPIdxs();
   ajustarSim(); montarTudo(); salvarRascunho(); reconfigurarConexao();
 }
 function pedirNome(msg, inicial, botoes) {
@@ -1553,7 +1589,7 @@ const existe = n => locais[carroId].layouts[n] ? `Já existe um layout "${n}"` :
 $("#lay-nome").addEventListener("change", e => { usarLayout(e.target.value); toast(`Layout "${e.target.value}" em uso`); });
 $("#lay-novo").addEventListener("click", () => pedirNome("Nome do layout novo", `Layout ${Object.keys(locais[carroId].layouts).length + 1}`, [
   ["Criar do de fábrica", n => existe(n) || (locais[carroId].layouts[n] = layoutFabrica(), usarLayout(n), toast(`Layout "${n}" criado`), null)],
-  ["Criar em branco", n => existe(n) || (locais[carroId].layouts[n] = { telas: [{ nome: "Tela 1", fundo: "#05070a", widgets: [] }], telas_comp: [{ nome: "Complementar 1", fundo: "#05070a", widgets: [] }] }, usarLayout(n), toast(`Layout "${n}" criado`), null)]]));
+  ["Criar em branco", n => existe(n) || (locais[carroId].layouts[n] = { telas: [{ nome: "Tela 1", fundo: "#05070a", widgets: [] }], telas_comp: [{ nome: "Tela 1", fundo: "#05070a", widgets: [] }], telas_p2: [{ nome: "Tela 1", fundo: "#05070a", widgets: [] }] }, usarLayout(n), toast(`Layout "${n}" criado`), null)]]));
 $("#lay-salvar-como").addEventListener("click", () => pedirNome("Salvar uma cópia deste layout como", `${locais[carroId].layoutNome} (cópia)`, [
   ["Salvar", n => existe(n) || (sincronizar(), locais[carroId].layouts[n] = clone(lay), usarLayout(n), toast(`Layout salvo como "${n}"`), null)]]));
 $("#lay-renomear").addEventListener("click", () => pedirNome("Novo nome do layout", locais[carroId].layoutNome, [
@@ -1584,7 +1620,7 @@ function montarCarros() {
 function ajustarSim() {
   // Faixa do controle de rotação acompanha a barra de rpm do carro
   let max = 0;
-  for (const t of [...(lay.telas || []), ...(lay.telas_comp || [])]) for (const w of t.widgets || []) if (w.tipo === "barra_rpm") max = Math.max(max, val(w, "max"));
+  for (const t of todasTelas(lay)) for (const w of t.widgets || []) if (w.tipo === "barra_rpm") max = Math.max(max, val(w, "max"));
   const topo = Math.ceil(((max || 4500) + 500) / 500) * 500, r = $("#s-rpm");
   r.max = topo; if (sim.rpm > topo) { sim.rpm = topo; r.value = topo; $("#o-rpm").textContent = sim.rpm + " rpm"; }
 }
@@ -1593,7 +1629,7 @@ async function trocarCarro(id) {
   if (Registro.gravando && id !== carroId) { await Registro.parar(); toast("Log encerrado: troca de carro"); }
   sincronizar(); carroId = id; lay = locais[id].layout; cfg = locais[id].config;
   cfg.marcha = cfg.marcha || {};
-  tIdx = 0; sel = -1; pIdx = 0; pIdxs.rt = pIdxs.comp = 0; ajustarSim(); montarTudo(); montarCarro(); montarCarros(); salvarRascunho();
+  tIdx = 0; sel = -1; pIdx = 0; zerarPIdxs(); ajustarSim(); montarTudo(); montarCarro(); montarCarros(); salvarRascunho();
   carroMudou();
   if (!$("[data-painel=arquivo]").hidden) $("#lay-texto").value = JSON.stringify(lay, null, 2);
   if (!$("[data-painel=log]").hidden) montarLog();
@@ -2090,12 +2126,12 @@ function mostrarInicio(sim) {
   $("#p-conectar").textContent = tipo === "simulacao" ? "Começar (simulação)" : "Conectar e começar";
   $("#p-inicio").hidden = !sim;
 }
-// ---------------- as 3 páginas: Real Time, Complementar e Configuração ----------------
+// ---------------- as páginas: Principal, Página 01, Página 02 e Configuração ----------------
 const paginaAtual = () => vistaPainel() ? pgMon : "cfg";
 function irPara(pg, gesto) {
   if (vistaPainel()) pIdxs[pgMon] = pIdx;
   fecharMenu();
-  const monitor = pg === "rt" || pg === "comp";
+  const monitor = pg in PAGINAS;
   $("#vista-painel").hidden = !monitor;
   document.querySelectorAll("#nav [data-pg]").forEach(b => b.setAttribute("aria-current", b.dataset.pg === pg ? "page" : "false"));
   try { localStorage.setItem(CHAVE + ".vista", pg); } catch {}
@@ -2104,6 +2140,7 @@ function irPara(pg, gesto) {
     dimensionarPainel(); pIdx = Math.min(pIdxs[pg] || 0, Math.max(0, telasDe(pg).length - 1));
     mostrarInicio(!Motor.ativo() && !simAtivo);
     if (gesto) telaCheia();
+    manterTelaLigada();  // também quando o app já abre direto no painel, sem toque
   }
   if (pg === "cfg") { montarTudo(); if (!$("[data-painel=log]").hidden) montarLog(); }
   reconfigurarConexao();  // pede (ou para de pedir) os itens complementares da página
@@ -2503,7 +2540,7 @@ function montarLog() {
   $("#log-nota").textContent = (tipo === "elm327"
     ? "Pelo ELM327 cada item chega no ritmo do seu pedido (mostrado ao lado). Com intervalo menor, o log repete o último valor lido. Itens complementares marcados passam a ser pedidos à central enquanto o log grava, o que deixa o rpm um pouco mais lento."
     : "Cada item chega no ritmo do seu pedido (mostrado ao lado); com intervalo menor, o log repete o último valor lido.")
-    + " Item sem leitura no momento fica em branco. Para gravar com a tela apagada, mantenha o app aberto no Real Time: ele não deixa a tela desligar.";
+    + " Item sem leitura no momento fica em branco. Para gravar com a tela apagada, mantenha o app aberto numa página do painel (Principal, Página 01 ou 02): ela não deixa a tela desligar.";
   contarLog(); atualizarRec(); montarLogs();
 }
 function contarLog() {
@@ -2525,7 +2562,7 @@ async function textoLog(meta, formato) {
   const q = s => (formato !== "txt" && /[",;\n]/.test(s)) ? `"${s.replace(/"/g, '""')}"` : s;
   const num = v => v === null || v === undefined ? "" : String(+(+v).toFixed(3)).replace(".", dec);
   const linhas = [];
-  if (formato === "txt") linhas.push(`# Painel Rally - log`, `# Carro: ${meta.nome_carro}`, `# Início: ${dataHora(meta.inicio, false)}  Intervalo: ${meta.intervalo_ms} ms  Linhas: ${meta.linhas}`, "#");
+  if (formato === "txt") linhas.push(`# Monitor Veicular - log`, `# Carro: ${meta.nome_carro}`, `# Início: ${dataHora(meta.inicio, false)}  Intervalo: ${meta.intervalo_ms} ms  Linhas: ${meta.linhas}`, "#");
   linhas.push(["data_hora", "tempo_s", ...meta.itens.map(i => i.unidade ? `${i.rotulo} (${i.unidade})` : i.rotulo)].map(q).join(sep));
   for (const p of await Banco.partes(meta.id)) for (const l of p.linhas)
     linhas.push([dataHora(l[0]), String(((l[0] - meta.inicio) / 1000).toFixed(3)).replace(".", dec), ...l.slice(1).map(num)].join(sep));
@@ -2698,7 +2735,7 @@ $("#al-nova").addEventListener("click", () => {
   ajustarSim(); montarCarros(); montarTudo(); montarCarro();
   requestAnimationFrame(laco);
   // celular dedicado: volta direto para o painel se foi lá que parou
-  let pg = "cfg"; try { pg = { painel: "rt", rt: "rt", comp: "comp" }[localStorage.getItem(CHAVE + ".vista")] || "cfg"; } catch {}
+  let pg = "cfg"; try { pg = { painel: "rt", rt: "rt", comp: "comp", p2: "p2" }[localStorage.getItem(CHAVE + ".vista")] || "cfg"; } catch {}
   irPara(pg, false);
   Registro.recuperar();
   if ("serviceWorker" in navigator && window.isSecureContext && !/claude/.test(location.hostname)) navigator.serviceWorker.register("sw.js").catch(() => {});
