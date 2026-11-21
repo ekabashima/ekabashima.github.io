@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Monitor Veicular",
-  "short_name": "Monitor Veicular",
+  "name": "Car Monitor",
+  "short_name": "Car Monitor",
   "description": "Painel de instrumentos do carro: lê a central por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.",
   "lang": "pt-BR",
   "start_url": "./",

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Monitor Veicular</title>
-<meta name="description" content="Monitor Veicular, painel de instrumentos do carro: lê a central por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.">
+<title>Car Monitor</title>
+<meta name="description" content="Car Monitor, painel de instrumentos do carro: lê a central por Bluetooth LE e mostra rpm, marcha, temperaturas, hodômetro, alertas e log.">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
@@ -73,7 +73,9 @@ p { margin: 0; }
 .col-preview, .col-tools { min-width: 0; display: grid; gap: 12px; }
 
 header.top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca img { width: 52px; height: 52px; flex: none; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; padding: 3px 10px;
   border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
 .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
@@ -203,6 +205,20 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 .p-menu .h-afer span { display: block; color: #92a0ad; font-size: .9rem; margin-bottom: 4px; }
 .p-menu input { min-height: 56px; width: 100%; font: 600 1.3rem var(--f-display); background: #0d1117; color: #f0f4f8; border: 1px solid #2f3a45; border-radius: 8px; padding: 0 14px; }
 .p-menu .h-erro { color: #f87171; font-weight: 600; }
+/* Códigos de falha: um cartão por código, com o link de busca ao lado */
+.f-lista { display: grid; gap: 8px; }
+.f-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--surface); }
+.f-cod { font: 700 1.5rem var(--f-display); letter-spacing: .03em; color: var(--bad); }
+.f-cod.pend { color: var(--warn); }
+.f-desc { color: var(--muted); font-size: .88rem; }
+.f-item .btn { grid-row: 1 / 3; grid-column: 2; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.p-menu .f-item { background: #1a1f27; border-color: #2f3a45; }
+.p-menu .f-cod { font-size: 1.9rem; color: #f87171; }
+.p-menu .f-cod.pend { color: #facc15; }
+.p-menu .f-desc { color: #92a0ad; font-size: .95rem; }
+.p-menu a.btn { min-height: 52px; padding: 6px 18px; font: 600 1.1rem var(--f-display); background: #f2b417; border-color: #f2b417; color: #1d1400; }
+.p-menu .f-nota { color: #92a0ad; font-size: .9rem; margin: 0; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40;
   background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; max-width: calc(100% - 32px);
   z-index: 20; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
@@ -275,7 +291,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
   <section class="col-preview" aria-label="Prévia do painel">
     <header class="top">
       <div class="brand">
-        <h1>Monitor Veicular</h1>
+        <h1 class="marca"><img src="icones/icone-192.png" alt="" width="52" height="52">Car Monitor</h1>
         <span id="modo" class="chip">Desconectado</span>
       </div>
       <div class="acoes">
@@ -316,6 +332,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
         <label class="check"><input type="checkbox" id="s-reduzida"> Reduzida 4L</label>
         <label class="check"><input type="checkbox" id="s-ecu" checked> ECU respondendo</label>
         <label class="check"><input type="checkbox" id="s-varrer"> Varrer rotação</label>
+        <label class="check"><input type="checkbox" id="s-dtc"> Códigos de falha (exemplo)</label>
       </div>
     </details>
   </section>
@@ -378,10 +395,11 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
           <button data-add="hodometro">Hodômetro</button>
           <button data-add="log">Indicador de log</button>
           <button data-add="status">Status da ECU</button>
+          <button data-add="falhas">Códigos de falha</button>
           <button data-add="texto">Texto</button>
           <button data-add="retangulo">Retângulo</button>
         </div>
-        <p class="nota">No painel, <strong>toque longo</strong>: sobre a marcha alterna 4H e 4L; sobre o indicador de log liga ou desliga o log; sobre o hodômetro zera o parcial; em outro lugar passa para a próxima tela.</p>
+        <p class="nota">No painel, <strong>toque</strong> nos códigos de falha para ver a lista e buscar o que cada um significa. <strong>Toque longo</strong>: sobre a marcha alterna 4H e 4L; sobre o indicador de log liga ou desliga o log; sobre o hodômetro zera o parcial; em outro lugar passa para a próxima tela.</p>
       </div>
     </div>
 
@@ -560,6 +578,12 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
     </div>
     <div class="painel" data-painel="diag" hidden>
       <div class="secao">
+        <div class="linha"><h2>Códigos de falha</h2><button id="dtc-ler">Ler códigos</button></div>
+        <p class="muted small" id="dtc-info"></p>
+        <div id="dtc-lista" class="f-lista"></div>
+        <p class="nota"><strong>Confirmado</strong>: a central registrou a falha (é o que acende a luz de injeção). <strong>Pendente</strong>: apareceu uma vez; se repetir, vira confirmado. O app só lê os códigos, não apaga. Lê sozinho ao conectar, quando a quantidade muda e a cada 5 minutos com os códigos na tela.</p>
+      </div>
+      <div class="secao">
         <div class="linha"><h2>Comunicação</h2><span id="diag-chip" class="chip">Exemplo</span></div>
         <p id="diag-nota" class="nota">Conecte ao carro (Abrir painel, depois Conectar) para ver os dados reais. Abaixo, um exemplo de como aparecem.</p>
         <div class="rolagem"><table class="tabela" id="diag-can"></table></div>
@@ -732,6 +756,8 @@ function valorSinal(nome) {
   if (!$("#s-ecu").checked) return { ok: false, v: 0 };
   if (nome in sim) return { ok: true, v: sim[nome] };
   if (nome === "velocidade_gps") return { ok: true, v: sim.velocidade * 0.99 };  // simulação: GPS 1% abaixo
+  if (nome === "codigos_falha") return { ok: true, v: $("#s-dtc").checked ? SIM_DTC.filter(f => !f.pendente).length : 0 };
+  if (nome === "luz_injecao") return { ok: true, v: $("#s-dtc").checked ? 1 : 0 };
   if (nome in SIM_EXTRA) return { ok: true, v: SIM_EXTRA[nome] };
   if (nome === "re_tcm") return { ok: true, v: sim.marcha < 0 ? 1 : 0 };
   return { ok: true, v: 0 };
@@ -865,6 +891,8 @@ function desenharWidget(g, w) {
     texto(g, t, 6, H / 2, val(w, "tamanho_fonte"), c565(cor), "left", "middle");
   } else if (w.tipo === "hodometro") {
     desenharHodometro(g, w, W, H, fundo, apag, rot);
+  } else if (w.tipo === "falhas") {
+    desenharFalhas(g, w, W, H, fundo, apag, rot);
   } else if (w.tipo === "log") {
     // Bola vazia: não está gravando. Bola cheia (verde): gravando.
     g.fillStyle = fundo; g.fillRect(0, 0, W, H);
@@ -884,6 +912,35 @@ function desenharWidget(g, w) {
     texto(g, val(w, "texto"), tx, H / 2, val(w, "tamanho_fonte"), c565(val(w, "cor")), al === "direita" ? "right" : al === "centro" ? "center" : "left", "middle");
   }
   g.restore();
+}
+
+// Códigos de falha: rótulo e quantidade em cima; os códigos em grade, no maior tamanho que couber
+const larguraTxt = (g, s, px) => { g.font = `${fontePx(px)}px "DejaVu Sans", Verdana, Geneva, sans-serif`; return g.measureText(s).width; };
+function desenharFalhas(g, w, W, H, fundo, apag, rot) {
+  const e = Falhas.estado(), pad = Math.max(4, Math.floor(H / 25)), tr = val(w, "tamanho_rotulo");
+  const lista = e.lista || [], ord = [...lista.filter(f => !f.pendente), ...lista.filter(f => f.pendente)];
+  g.fillStyle = fundo; g.fillRect(0, 0, W, H);
+  texto(g, val(w, "rotulo") || "CÓD. DE ERRO", pad, pad, tr, ord.length ? c565("#facc15") : rot);
+  texto(g, e.lendo ? "lendo…" : (e.lista ? String(ord.length) : ""), W - pad, pad, tr, rot, "right");
+  const topo = pad + alturaFonte(tr) + 4, aw = W - 2 * pad, ah = H - topo - pad;
+  const centro = (s, cor) => { let f = FONTES[0]; for (const x of FONTES) if (larguraTxt(g, s, x) <= aw && alturaFonte(x) <= ah) f = x; texto(g, s, W / 2, topo + ah / 2, f, cor, "center", "middle"); };
+  if (!e.lista) { centro(e.erro ? "sem leitura" : (e.lendo ? "lendo…" : "---"), e.erro ? c565("#facc15") : apag); return; }
+  if (!ord.length) { centro("NENHUM", c565("#22c55e")); return; }
+  // Maior fonte em que todos os códigos cabem; se nem a menor couber, mostra os primeiros e "+N"
+  let esc = null;
+  for (const f of [...FONTES].reverse()) {
+    const vao = Math.max(6, f * 0.6), cw = larguraTxt(g, "P0000", f) + vao, ch = alturaFonte(f) + 2;
+    const cols = Math.max(1, Math.floor((aw + vao) / cw)), rows = Math.floor(ah / ch);
+    if (rows >= 1 && cols * rows >= ord.length) { esc = { f, cw, ch, cols, rows }; break; }
+    if (f === FONTES[1]) esc = { f, cw, ch, cols, rows: Math.max(1, rows), corta: true };
+  }
+  const cabe = esc.cols * esc.rows, mostra = esc.corta && ord.length > cabe ? cabe - 1 : ord.length;
+  const linhas = Math.ceil((mostra + (mostra < ord.length ? 1 : 0)) / esc.cols), y0 = topo + Math.max(0, (ah - linhas * esc.ch) / 2);
+  for (let i = 0; i < mostra; i++) {
+    const f = ord[i], x = pad + (i % esc.cols) * esc.cw, y = y0 + Math.floor(i / esc.cols) * esc.ch;
+    texto(g, f.codigo, x, y, esc.f, c565(f.pendente ? "#facc15" : "#f87171"));
+  }
+  if (mostra < ord.length) texto(g, `+${ord.length - mostra}`, pad + (mostra % esc.cols) * esc.cw, y0 + Math.floor(mostra / esc.cols) * esc.ch, esc.f, rot);
 }
 
 // Hodômetro: rótulo e avisos em cima, número no meio, comparação com o GPS embaixo, − e + nas laterais
@@ -998,7 +1055,7 @@ function abrirAba(nome) {
 document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => abrirAba(b.dataset.aba)));
 
 // ---------------- telas e lista ----------------
-const NOMES_TIPO = { barra_rpm: "segmentos", valor: "número", marcha: "marcha", barra: "barra", texto: "texto", retangulo: "forma", status: "status", hodometro: "hodômetro", log: "log" };
+const NOMES_TIPO = { barra_rpm: "segmentos", valor: "número", marcha: "marcha", barra: "barra", texto: "texto", retangulo: "forma", status: "status", hodometro: "hodômetro", log: "log", falhas: "falhas" };
 const nomeWidget = w => w.rotulo || w.texto || (w.tipo === "barra_rpm" ? "Barra de rotação" : w.tipo === "marcha" ? "Marcha" : w.tipo === "status" ? "Status da ECU" : w.tipo === "retangulo" ? "Retângulo" : w.tipo === "hodometro" ? "Hodômetro" : w.tipo === "log" ? "Indicador de log" : w.sinal || w.tipo);
 function montarTelas() {
   const box = $("#telas-chips"); box.innerHTML = "";
@@ -1057,7 +1114,9 @@ const NOVOS = {
   retangulo: { w: 200, h: 100, cor: "#0d1117", raio: 8 },
   status: { w: 400, h: 44, tamanho_fonte: 24, fundo: "#0d1117" },
   hodometro: { w: 784, h: 250, rotulo: "PARCIAL", casas: 2, tamanho_rotulo: 24, cor: "#f8fafc", fundo: "#0d1117", cor_apagado: "#1a1f27", mostrar_gps: true, botoes: true },
-  log: { w: 120, h: 120, rotulo: "LOG", tamanho_rotulo: 18, cor: "#22c55e", mostrar_tempo: true, fundo: "#0d1117" }
+  log: { w: 120, h: 120, rotulo: "LOG", tamanho_rotulo: 18, cor: "#22c55e", mostrar_tempo: true, fundo: "#0d1117" },
+  // O sinal codigos_falha (quantidade) faz o app pedir à central e perceber quando aparece código novo
+  falhas: { w: 256, h: 148, sinal: "codigos_falha", rotulo: "CÓD. DE ERRO", tamanho_rotulo: 18, fundo: "#0d1117", cor_apagado: "#1a1f27" }
 };
 function adicionarWidget(n) {
   const ws = telaAtual().widgets; if (ws.length >= 24) { toast("Limite de 24 widgets por tela"); return; }
@@ -1123,7 +1182,8 @@ const CAMPOS = {
   retangulo: [["raio"], ["cor"]],
   status: [["tamanho_fonte"], ["fundo"]],
   hodometro: [["rotulo", "casas", "tamanho_rotulo"], ["mostrar_gps", "botoes", "fantasma"], ["cor", "cor_rotulo", "cor_apagado", "fundo"], ["inclinacao", "espessura"]],
-  log: [["rotulo", "tamanho_rotulo"], ["mostrar_tempo"], ["cor", "cor_rotulo", "fundo"]]
+  log: [["rotulo", "tamanho_rotulo"], ["mostrar_tempo"], ["cor", "cor_rotulo", "fundo"]],
+  falhas: [["rotulo", "tamanho_rotulo"], ["cor_rotulo", "cor_apagado", "fundo"]]
 };
 const SINAIS_HOD = ["hodometro", "hodometro_total", "hodometro_gps", "hodometro_dif", "hodometro_dif_m"];
 const sinaisConhecidos = () => {
@@ -1239,6 +1299,7 @@ function montarForm() {
     else if (grupo === "alertas") form.append(alertasEditor(w));
     else form.append(el("div", { class: "grade" }, ...grupo.map(k => campo(w, k))));
   }
+  if (w.tipo === "falhas") form.append(el("p", { class: "nota" }, "Mostra os códigos de falha lidos da central: confirmados em vermelho, pendentes em amarelo. No painel, toque no widget para ver a lista com o link que busca o significado de cada código."));
   if (w.sinal && !sinaisConhecidos().includes(w.sinal)) form.append(el("p", { class: "bad-txt small" }, `O sinal "${w.sinal}" não existe na configuração do carro. O painel vai mostrar ---.`));
   const conf = el("div");
   form.append(el("div", { class: "linha" },
@@ -1534,7 +1595,7 @@ const ITENS_P2 = [
   { sinal: "combustivel", rotulo: "COMBUSTÍVEL", alerta: { abaixo: 15 } },
   { sinal: "consumo", rotulo: "CONSUMO" },
   { sinal: "tensao", rotulo: "BATERIA" },
-  { sinal: "codigos_falha", rotulo: "CÓD. DE ERRO" },
+  { sinal: "codigos_falha", rotulo: "CÓD. DE ERRO", tipo: "falhas" },
   { sinal: "temp_admissao", rotulo: "TEMP. ADMISSÃO" },
   { sinal: "temp_oleo", rotulo: "TEMP. ÓLEO" }
 ];
@@ -1544,8 +1605,9 @@ function telasP2Auto(c, l) {
   const limiteDoCarro = (sinal, k) => { for (const t of l.telas || []) for (const w of t.widgets || []) for (const a of w.sinal === sinal ? w.alertas || [] : []) if (a[k] !== undefined) return a[k]; };
   const widgets = ITENS_P2.filter(d => existe.has(d.sinal)).map((d, i) => {
     const it = cat.find(o => o.sinal === d.sinal);
-    const w = { tipo: "valor", x: 8 + (i % 3) * 264, y: 8 + Math.floor(i / 3) * 156, w: 256, h: 148, sinal: d.sinal, rotulo: d.rotulo, unidade: it.unidade,
+    const w = { tipo: d.tipo || "valor", x: 8 + (i % 3) * 264, y: 8 + Math.floor(i / 3) * 156, w: 256, h: 148, sinal: d.sinal, rotulo: d.rotulo, unidade: it.unidade,
       casas: casasItem(it), tamanho_rotulo: 18, cor: "#f8fafc", fundo: "#0d1117", cor_apagado: "#1a1f27" };
+    if (w.tipo === "falhas") { delete w.unidade; delete w.casas; delete w.cor; }
     if (d.alerta) {
       const k = "acima" in d.alerta ? "acima" : "abaixo";
       w.alertas = [{ [k]: limiteDoCarro(d.sinal, k) ?? d.alerta[k], cor: "#ffffff", fundo: "#991b1b", piscar: true }];
@@ -1558,6 +1620,9 @@ function garantirComp(l, c) {
   if (!Array.isArray(l.telas_comp) || !l.telas_comp.length) l.telas_comp = telasCompAuto(c, l);
   for (const t of l.telas_comp) if (/^Complementar \d+$/.test(t.nome || "")) t.nome = t.nome.replace("Complementar", "Tela");  // nome antigo da página
   if (!Array.isArray(l.telas_p2) || !l.telas_p2.length) l.telas_p2 = telasP2Auto(c, l);
+  // O número com a quantidade de códigos vira o widget que mostra os próprios códigos
+  for (const t of todasTelas(l)) for (const w of t.widgets || [])
+    if (w.tipo === "valor" && w.sinal === "codigos_falha") { w.tipo = "falhas"; if (/^CÓD\. FALHA$/.test(w.rotulo || "")) w.rotulo = "CÓD. DE ERRO"; delete w.unidade; delete w.casas; delete w.cor; delete w.alertas; }
 }
 const layoutFabrica = () => { const l = clone((PERFIS_PADRAO[carroId] || PERFIS_PADRAO.pajero).layout); garantirComp(l, cfg); return l; };
 
@@ -1748,7 +1813,7 @@ const SERVICOS_ELM = ["0000fff0-0000-1000-8000-00805f9b34fb", "0000ffe0-0000-100
   "000018f0-0000-1000-8000-00805f9b34fb", "e7810a71-73ae-499d-8c15-faa9aef0c3f2"];
 
 class FonteElm {
-  constructor(p) { this.p = p; this.buf = ""; this.espera = null; this.cab = ""; this.vivo = true; }
+  constructor(p) { this.p = p; this.buf = ""; this.espera = null; this.cab = ""; this.vivo = true; this.fila = []; }
   async abrir(dev) {
     const gatt = await dev.gatt.connect();
     let rx = null, tx = null;
@@ -1795,9 +1860,26 @@ class FonteElm {
     return resps ? resps.find(p => respostaOk(r, p)) || null : null;
   }
   reconfigurar(p) { this.p = p; }
+  // Tarefa avulsa (ex.: ler códigos de falha): roda entre dois pedidos da agenda, sem atropelar o adaptador
+  entre(f) { return new Promise((ok, falha) => this.fila.push(async () => { try { ok(await f()); } catch (e) { falha(e); } })); }
+  // Códigos de falha de cada central: 03 = confirmados, 07 = pendentes
+  lerDtc(cabs) {
+    return this.entre(async () => {
+      const codigos = [], semResposta = [];
+      for (const cab of cabs) for (const svc of [0x03, 0x07]) {
+        if (cab !== this.cab) { if (await this.cmd("ATSH" + cab, 1000) === null) { if (svc === 3) semResposta.push(cab); continue; } this.cab = cab; }
+        const txt = await this.cmd("0" + svc, 3000), resps = txt === null ? null : lerElm(txt);
+        const p = resps && resps.find(x => x[0] === 0x40 + svc);
+        if (!p) { if (svc === 3) semResposta.push(cab); continue; }
+        for (const c of codigosDaResposta(p)) codigos.push({ codigo: c, modulo: cab, pendente: svc === 7 });
+      }
+      return { codigos, semResposta, modulos: cabs.length };
+    });
+  }
   // Mesma agenda da ponte: o pedido mais atrasado primeiro; PID sem resposta é tentado a cada 30 s
   async laco() {
     while (this.vivo) {
+      if (this.fila.length) { await this.fila.shift()(); continue; }
       const agora = performance.now(), online = Motor.recebendo();
       let esc = null, maior = -1;
       for (const r of this.p.reqs) { const a = agora - r.proximo; if (a >= 0 && a > maior) { maior = a; esc = r; } }
@@ -1899,7 +1981,7 @@ async function conectar() {
   catch (e) { if (e.name !== "NotFoundError") toast("Bluetooth: " + e.message); return false; }
   desconectar();
   Object.assign(Conexao, { ativa: true, dev, tipo, reconectando: false });
-  Motor.limpar(); Marcha.zerar();
+  Motor.limpar(); Marcha.zerar(); Falhas.zerar();
   dev.addEventListener("gattserverdisconnected", aoCair);
   Gps.iniciar(cfg);
   try { await abrirFonte(); } catch (e) { estadoConexao("erro", e.message); aoCair(); }
@@ -1910,7 +1992,7 @@ function desconectar() {
   Object.assign(Conexao, { ativa: false, dev: null, fonte: null, reconectando: false });
   if (f) f.vivo = false;
   if (d) { d.removeEventListener("gattserverdisconnected", aoCair); try { d.gatt.disconnect(); } catch {} }
-  Gps.parar(); simAtivo = false; estadoConexao("desligado");
+  Gps.parar(); simAtivo = false; estadoConexao("desligado"); Falhas.zerar();
   if (Registro.gravando && Registro.meta.auto) Registro.parar();
 }
 let reconfigT;
@@ -1925,6 +2007,121 @@ function reconfigurarConexao() {  // configuração mudou com o carro conectado
     Gps.iniciar(cfg);
   }, 1200);
 }
+
+// ---------------- códigos de falha (DTC) ----------------
+// Cada código vem em 2 bytes: 2 bits da letra (P motor/câmbio, C chassi, B carroceria, U rede) e 14 bits do número.
+const decodificarDtc = (b0, b1) => "PCBU"[b0 >> 6] + ((b0 >> 4) & 3) + [b0 & 15, b1 >> 4, b1 & 15].map(n => n.toString(16).toUpperCase()).join("");
+function codigosDaResposta(p) {
+  let d = p.slice(1);
+  // CAN: o primeiro byte é a quantidade. Protocolos antigos não têm quantidade e completam com 00 00.
+  if (d.length % 2 === 1 && d[0] * 2 <= d.length - 1) d = d.slice(1, 1 + d[0] * 2);
+  const out = [];
+  for (let i = 0; i + 1 < d.length; i += 2) if (d[i] || d[i + 1]) out.push(decodificarDtc(d[i], d[i + 1]));
+  return out;
+}
+const NOME_MODULO = { "7E0": "motor", "7E1": "câmbio" };
+const nomeModulo = cab => NOME_MODULO[cab] || `módulo ${cab}`;
+const SIM_DTC = [{ codigo: "P0401", modulo: "7E0", pendente: false }, { codigo: "P0711", modulo: "7E1", pendente: false }, { codigo: "P0299", modulo: "7E0", pendente: true }];
+// Busca no Google: o código, o carro (sem a motorização) e "código de falha"
+function linkBuscaDtc(codigo) {
+  const pal = String(cfg.veiculo || "").split(/\s+/).filter(Boolean), modelo = [];
+  for (const [i, p] of pal.entries()) { if (i > 0 && /\d|\(/.test(p)) break; modelo.push(p); }
+  return "https://www.google.com/search?q=" + encodeURIComponent(`${codigo} ${modelo.join(" ")} código de falha significado`.replace(/\s+/g, " "));
+}
+const Falhas = {
+  lista: null, lido: 0, lendo: false, erro: "", qtdLida: null, proxima: 0, versao: 0,
+  zerar() { Object.assign(this, { lista: null, lido: 0, lendo: false, erro: "", qtdLida: null, proxima: 0 }); this.versao++; },
+  // Centrais que o carro já consulta (7E0 motor, 7E1 câmbio...): cada uma guarda os próprios códigos
+  modulos() { const s = new Set(); for (const r of cfg.requisicoes || []) { const c = String(r.cabecalho || "").toUpperCase(); if (r.ativo !== false && /^7E[0-7]$/.test(c)) s.add(c); } return s.size ? [...s] : ["7E0"]; },
+  temObd() { return (cfg.requisicoes || []).some(r => r.ativo !== false); },
+  simulado() { return !Motor.ativo(); },
+  estado() {
+    if (!this.simulado()) return { lista: this.lista, lido: this.lido, lendo: this.lendo, erro: this.erro };
+    if (!$("#s-ecu").checked) return { lista: null, lido: 0, lendo: false, erro: "" };
+    return { lista: $("#s-dtc").checked ? SIM_DTC : [], lido: Date.now(), lendo: false, erro: "", exemplo: true };
+  },
+  async ler() {
+    if (this.simulado()) { this.versao++; return; }
+    if (this.lendo) return;
+    const f = Conexao.fonte;
+    if (Conexao.tipo !== "elm327" || !f || !f.lerDtc) { this.erro = "A ponte ESP32 ainda não lê códigos de falha. Use o adaptador ELM327."; this.versao++; return; }
+    if (!this.temObd()) { this.erro = "Este carro não tem pedidos OBD na configuração."; this.versao++; return; }
+    this.lendo = true; this.erro = ""; this.versao++;
+    const qtd = Motor.valido("codigos_falha") ? Motor.valor("codigos_falha") : null;
+    try {
+      const r = await Promise.race([f.lerDtc(this.modulos()), dormir(20000).then(() => { throw new Error("a central demorou demais para responder"); })]);
+      if (r.semResposta.length >= r.modulos) throw new Error("a central não respondeu ao pedido de códigos");
+      // Um código pendente que também está confirmado aparece uma vez só
+      const conf = new Set(r.codigos.filter(c => !c.pendente).map(c => c.modulo + c.codigo));
+      this.lista = r.codigos.filter(c => !c.pendente || !conf.has(c.modulo + c.codigo));
+      this.lido = Date.now(); this.qtdLida = qtd;
+    } catch (e) { this.erro = "Não foi possível ler: " + e.message; }
+    this.lendo = false; this.proxima = performance.now() + 300000; this.versao++;
+  },
+  // Lê sozinho: ao conectar, quando a quantidade informada pela central muda e a cada 5 min com os códigos na tela
+  tique() {
+    if (this.simulado() || this.lendo || Conexao.tipo !== "elm327" || !Motor.recebendo() || !this.temObd()) return;
+    const qtd = Motor.valido("codigos_falha") ? Motor.valor("codigos_falha") : null;
+    if (this.lista === null && !this.erro) { this.ler(); return; }
+    if (qtd !== null && this.qtdLida === null && this.lista) this.qtdLida = qtd;
+    if (qtd !== null && this.qtdLida !== null && qtd !== this.qtdLida) { this.ler(); return; }
+    if (performance.now() >= this.proxima && falhasNaTela()) this.ler();
+  },
+};
+setInterval(() => Falhas.tique(), 2000);
+$("#s-dtc").addEventListener("change", () => Falhas.versao++);
+$("#s-ecu").addEventListener("change", () => Falhas.versao++);
+function falhasNaTela() {
+  if (!vistaPainel()) return !$("[data-painel=diag]").hidden;
+  const t = telasDe(pgMon)[pIdx];
+  return !$("#p-menu").hidden || !!(t && t.widgets.some(w => w.tipo === "falhas"));
+}
+const horaTxt = t => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+function resumoFalhas(e) {
+  if (e.lendo) return "Lendo os códigos da central…";
+  if (e.erro) return e.erro;
+  if (!e.lista) return Motor.ativo() ? "Ainda não lido." : "Conecte ao carro para ler os códigos. Em Simular valores, marque \"Códigos de falha (exemplo)\" para ver como aparecem.";
+  const c = e.lista.filter(f => !f.pendente).length, p = e.lista.length - c;
+  const txt = !e.lista.length ? "Nenhum código de falha" : `${c} confirmado${c === 1 ? "" : "s"}` + (p ? `, ${p} pendente${p === 1 ? "" : "s"}` : "");
+  return (e.exemplo ? "Exemplo: " : "") + txt + (e.exemplo ? "" : ` · lido às ${horaTxt(e.lido)}`);
+}
+// Um cartão por código: código, central e situação; ao lado, o link que busca o significado
+function cartoesFalhas(lista) {
+  const ord = [...lista.filter(f => !f.pendente), ...lista.filter(f => f.pendente)];
+  return ord.map(f => el("div", { class: "f-item" },
+    el("span", { class: "f-cod" + (f.pendente ? " pend" : "") }, f.codigo),
+    el("span", { class: "f-desc" }, `${f.pendente ? "Pendente" : "Confirmado"} · central do ${nomeModulo(f.modulo)}`),
+    el("a", { class: "btn", href: linkBuscaDtc(f.codigo), target: "_blank", rel: "noopener" }, "O que é? ↗")));
+}
+function abrirMenuFalhas() {
+  fecharMenu();
+  const m = $("#p-menu"); m.className = "p-menu hod";
+  const info = el("div", { class: "h-info", "aria-live": "polite" }), lista = el("div", { class: "f-lista" });
+  const ler = el("button", { onclick: () => Falhas.ler() }, "Ler de novo");
+  let vista = -1;
+  const atual = () => {
+    if (vista === Falhas.versao) return; vista = Falhas.versao;
+    const e = Falhas.estado();
+    info.textContent = resumoFalhas(e); ler.disabled = e.lendo;
+    lista.innerHTML = ""; if (e.lista) lista.append(...cartoesFalhas(e.lista));
+  };
+  m.append(el("div", { class: "h-topo" }, el("h2", {}, "Códigos de falha"), el("div", { class: "linha" }, ler, el("button", { onclick: fecharMenu }, "Fechar"))),
+    info, lista, el("p", { class: "f-nota" }, "Vermelho: confirmado (acende a luz de injeção). Amarelo: pendente, apareceu uma vez. O link abre a busca no navegador."));
+  atual(); m.hidden = false;
+  menuInfoT = setInterval(atual, 500);
+  // Fecha sozinho depois de 30 s sem toque, para não esconder o painel
+  const adiar = () => { clearTimeout(menuT); menuT = setTimeout(fecharMenu, 30000); };
+  m.onpointerdown = adiar; m.oninput = adiar; adiar();
+}
+let versaoDtcDiag = -1;
+function montarFalhasDiag() {
+  if ($("[data-painel=diag]").hidden || versaoDtcDiag === Falhas.versao) return;
+  versaoDtcDiag = Falhas.versao;
+  const e = Falhas.estado();
+  $("#dtc-info").textContent = resumoFalhas(e); $("#dtc-ler").disabled = e.lendo;
+  const box = $("#dtc-lista"); box.innerHTML = ""; if (e.lista) box.append(...cartoesFalhas(e.lista));
+}
+$("#dtc-ler").addEventListener("click", () => { if (!Motor.ativo()) toast("Conecte ao carro para ler os códigos"); Falhas.ler(); });
 
 // ---------------- GPS do celular ----------------
 const Gps = {
@@ -2183,6 +2380,7 @@ function widgetEm(p, tipo) {
 }
 // Hodômetro: laterais corrigem, meio abre o menu
 function toqueCurtoPainel(p) {
+  if (widgetEm(p, "falhas")) { abrirMenuFalhas(); return; }
   const w = widgetEm(p, "hodometro"); if (!w) return;
   const z = zonaHod(w);
   if (z && p.x < w.x + z) Hodometro.corrigir(-Hodometro.passo());
@@ -2259,7 +2457,7 @@ function carroMudou() {
   $("#p-carro").textContent = nomeCarro(cfg);
   if (!Motor.ativo()) { if (vistaPainel()) mostrarInicio(true); return; }
   if (((cfg.conexao && cfg.conexao.tipo) || "elm327") !== Conexao.tipo) { desconectar(); if (vistaPainel()) mostrarInicio(true); toast(`${nomeCarro(cfg)} usa outro adaptador: conecte de novo`); return; }
-  Motor.limpar(); Marcha.zerar();
+  Motor.limpar(); Marcha.zerar(); Falhas.zerar();
   Promise.resolve(Conexao.fonte && Conexao.fonte.reconfigurar(plano(cfg))).catch(() => {});
   Gps.iniciar(cfg);
 }
@@ -2371,6 +2569,7 @@ function exemploVivo() {
 }
 function atualizarDiag() {
   if ($("[data-painel=diag]").hidden) return;
+  montarFalhasDiag();
   const d = Motor.ativo() ? Motor.diagnostico() : exemploVivo(), c = d.can || {};
   setChip($("#diag-chip"), d.exemplo ? "" : (c.ecu ? "ok" : "warn"), d.exemplo ? "Exemplo" : (c.ecu ? "Recebendo dados" : "Sem dados do carro"));
   $("#diag-nota").hidden = !d.exemplo;
@@ -2562,7 +2761,7 @@ async function textoLog(meta, formato) {
   const q = s => (formato !== "txt" && /[",;\n]/.test(s)) ? `"${s.replace(/"/g, '""')}"` : s;
   const num = v => v === null || v === undefined ? "" : String(+(+v).toFixed(3)).replace(".", dec);
   const linhas = [];
-  if (formato === "txt") linhas.push(`# Monitor Veicular - log`, `# Carro: ${meta.nome_carro}`, `# Início: ${dataHora(meta.inicio, false)}  Intervalo: ${meta.intervalo_ms} ms  Linhas: ${meta.linhas}`, "#");
+  if (formato === "txt") linhas.push(`# Car Monitor - log`, `# Carro: ${meta.nome_carro}`, `# Início: ${dataHora(meta.inicio, false)}  Intervalo: ${meta.intervalo_ms} ms  Linhas: ${meta.linhas}`, "#");
   linhas.push(["data_hora", "tempo_s", ...meta.itens.map(i => i.unidade ? `${i.rotulo} (${i.unidade})` : i.rotulo)].map(q).join(sep));
   for (const p of await Banco.partes(meta.id)) for (const l of p.linhas)
     linhas.push([dataHora(l[0]), String(((l[0] - meta.inicio) / 1000).toFixed(3)).replace(".", dec), ...l.slice(1).map(num)].join(sep));
