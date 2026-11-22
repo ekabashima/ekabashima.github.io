@@ -172,7 +172,7 @@ textarea { font: .82rem/1.45 var(--f-code); min-height: 260px; resize: vertical;
 .req summary::-webkit-details-marker { display: none; }
 .req summary .code { font-family: var(--f-code); font-size: .8rem; color: var(--muted); }
 .saida { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.3fr) minmax(0,.6fr) minmax(0,1.3fr) auto; gap: 6px; }
-.ok-txt { color: var(--ok); } .bad-txt { color: var(--bad); }
+.ok-txt { color: var(--ok); } .bad-txt { color: var(--bad); } .warn-txt { color: var(--warn); }
 
 /* Vista do painel: o próprio mostrador, sempre escuro como a tela de um carro */
 .vista-painel { position: fixed; inset: 0; z-index: 30; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -501,6 +501,19 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
           <label class="campo"><span>Sinal da marcha</span><select id="c-sinal-marcha"></select></label>
           <label class="campo"><span>Sinal de ré</span><select id="c-sinal-re"></select></label>
         </div>
+        <div class="req" id="c-red-box">
+          <h3>Reduzida (4L)</h3>
+          <label class="check"><input type="checkbox" id="c-red-auto"> Detectar a 4L sozinho pela relação rpm/velocidade</label>
+          <div class="grade g4">
+            <label class="campo"><span>Velocidade mínima (km/h)</span><input type="number" step="1" id="c-red-vel"></label>
+            <label class="campo"><span>Rpm mínimo</span><input type="number" step="50" id="c-red-rpm"></label>
+            <label class="campo"><span>Folga (%)</span><input type="number" step="1" id="c-red-folga"></label>
+            <label class="campo"><span>Tempo de evidência (s)</span><input type="number" step="0.5" id="c-red-evid"></label>
+            <label class="campo"><span>Patinagem máx. do conversor (%)</span><input type="number" step="5" id="c-red-patin"></label>
+          </div>
+          <label class="campo"><span>Sinal da 4L lido do carro (manda na detecção)</span><select id="c-sinal-red"></select></label>
+          <p class="muted small">A Mitsubishi só troca 4H↔4L parada em N, então o app só muda o modo depois de uma parada de 2 s. A detecção precisa de alguns segundos numa marcha que só existe em 4L (a 2ª, por exemplo); só em 3ª da reduzida não dá para separar de 4H. Para sair do modo em que está, a relação medida não pode caber em nenhuma marcha desse modo nem com o conversor patinando até a patinagem máxima (o conversor só aumenta a relação medida). O toque longo na marcha continua valendo até a próxima parada. Com o sinal da 4L configurado e respondendo, ele manda e a detecção fica desligada.</p>
+        </div>
         <div class="req" id="medidor">
           <h3>Medir as relações rodando</h3>
           <p class="muted small">Sem a ficha técnica? Rode estável em cada marcha (no automático, em modo manual) e grave a relação medida.</p>
@@ -589,9 +602,25 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
         <div class="rolagem"><table class="tabela" id="diag-can"></table></div>
       </div>
       <div class="secao">
+        <div class="linha"><h2>O que a central informa</h2><button id="sup-ler">Ler de novo</button></div>
+        <p class="muted small" id="sup-info"></p>
+        <div class="rolagem"><table class="tabela" id="sup-tabela"></table></div>
+        <p class="nota">Ao conectar, o app pergunta à central quais itens padrão (serviço 01) ela fornece. Os que ela não tem deixam de ser pedidos e aparecem como <strong>N/D</strong> no painel. Itens de outros serviços (como o 21 do câmbio) não entram nesta lista.</p>
+      </div>
+      <div class="secao">
         <h2>Bytes brutos de cada pedido</h2>
-        <p class="muted small">Bytes que mudaram nos últimos 3 segundos ficam destacados. Para achar a marcha na central do câmbio: em modo esportivo, engate 1ª, 2ª, 3ª e observe qual byte acompanha.</p>
+        <p class="muted small">Só os pedidos feitos agora: os itens extras são pedidos apenas quando estão na página aberta (aqui na Configuração, a página escolhida em Telas). Bytes que mudaram nos últimos 3 segundos ficam destacados. Para achar a marcha na central do câmbio: em modo esportivo, engate 1ª, 2ª, 3ª e observe qual byte acompanha.</p>
         <div id="diag-brutos" class="lista"></div>
+      </div>
+      <div class="secao">
+        <h2>Testar um pedido</h2>
+        <p class="muted small">Envia um pedido à central e mostra a resposta, para procurar um dado que o perfil ainda não lê (por exemplo, a temperatura do câmbio). Só serviços de leitura: 01, 02, 03, 06, 07, 09, 21, 22.</p>
+        <div class="grade">
+          <label class="campo"><span>Central (cabeçalho)</span><input id="tp-cab" value="7E1" maxlength="8" autocapitalize="characters" spellcheck="false"></label>
+          <label class="campo"><span>Pedido (hex)</span><input id="tp-cmd" value="2102" maxlength="14" autocapitalize="characters" spellcheck="false"></label>
+        </div>
+        <div class="linha"><button id="tp-enviar">Enviar</button><span class="muted small" id="tp-estado"></span></div>
+        <div id="tp-saida" class="lista"></div>
       </div>
       <div class="secao">
         <h2>Sinais</h2>
@@ -744,7 +773,8 @@ const corFaixa = (w, v) => { const f = w.faixas || []; if (!f.length) return val
 const alertaAtivo = (w, ok, v) => { if (!ok) return null; for (const a of w.alertas || []) { if (a.acima !== undefined ? v >= a.acima : (a.abaixo !== undefined && v <= a.abaixo)) return a; } return null; };
 const pisca = () => (Math.floor(Date.now() / 90) & 1) === 1;
 function formatar(w, ok, v) {
-  if (!ok) return "---"; const p = val(w, "passo"); if (p > 0) v = Math.round(v / p) * p; return Number(v).toFixed(val(w, "casas"));
+  if (!ok) return Motor.indisponivel(w.sinal) ? "N/D" : "---";  // N/D: a central informou que não tem este item
+  const p = val(w, "passo"); if (p > 0) v = Math.round(v / p) * p; return Number(v).toFixed(val(w, "casas"));
 }
 
 function valorSinal(nome) {
@@ -760,6 +790,9 @@ function valorSinal(nome) {
   if (nome === "luz_injecao") return { ok: true, v: $("#s-dtc").checked ? 1 : 0 };
   if (nome in SIM_EXTRA) return { ok: true, v: SIM_EXTRA[nome] };
   if (nome === "re_tcm") return { ok: true, v: sim.marcha < 0 ? 1 : 0 };
+  if (nome === "reduzida") return { ok: true, v: $("#s-reduzida").checked ? 1 : 0 };
+  if (nome === "reduzida_origem") return { ok: true, v: ORIGEM_RED.manual };
+  if (nome === "relacao_medida") { const r = Marcha.relacao(cfg.marcha || {}, sim.rpm, sim.velocidade); return { ok: r !== null, v: r ? Math.round(r * 100) / 100 : 0 }; }
   return { ok: true, v: 0 };
 }
 const reduzida = () => Motor.ativo() ? Marcha.red : $("#s-reduzida").checked;
@@ -784,7 +817,11 @@ const calcValido = f => avaliar(String(f || "").replace(DEP, "(1)"), []).ok;
 const ROTULO_SINAL = { rpm: "Rotação", velocidade: "Velocidade", temp_motor: "Temperatura do motor", tensao: "Bateria", temp_cambio: "Temperatura do câmbio",
   re_tcm: "Ré (central do câmbio)", marcha: "Marcha", hodometro: "Hodômetro parcial", hodometro_total: "Hodômetro total", hodometro_gps: "Hodômetro pelo GPS",
   hodometro_dif: "Diferença hodômetro × GPS (%)", hodometro_dif_m: "Diferença hodômetro × GPS (m)", velocidade_gps: "Velocidade pelo GPS", gps_precisao: "Precisão do GPS", temp_extra: "Temperatura extra",
-  entrada_2: "Entrada analógica 2", pulsos_vss: "Pulsos do sensor de velocidade", satelites: "Satélites do GPS" };
+  entrada_2: "Entrada analógica 2", pulsos_vss: "Pulsos do sensor de velocidade", satelites: "Satélites do GPS",
+  relacao_medida: "Relação medida", reduzida: "Reduzida (4L)", reduzida_origem: "Origem da 4L (0 auto, 1 toque, 2 carro)" };
+// Sinais que o próprio app calcula a partir da marcha (não servem de fonte para outros cálculos)
+const SINAIS_MARCHA = ["marcha", "relacao_medida", "reduzida", "reduzida_origem"];
+const sinaisDaMarcha = c => ((c.marcha && c.marcha.reduzida) || 1) > 1.01 ? SINAIS_MARCHA : SINAIS_MARCHA.slice(0, 2);
 const UNID_SINAL = { hodometro: "km", hodometro_total: "km", hodometro_gps: "km", hodometro_dif: "%", hodometro_dif_m: "m", velocidade_gps: "km/h", gps_precisao: "m" };
 // Todos os itens do carro aberto, com a origem de cada um
 function catalogoSinais(cfg = window.cfgAtual()) {
@@ -794,7 +831,7 @@ function catalogoSinais(cfg = window.cfgAtual()) {
   for (const r of cfg.requisicoes || []) if (r.ativo !== false) for (const s of r.saidas || []) add({ sinal: s.sinal, rotulo: s.rotulo, unidade: s.unidade, grupo: "Central (OBD)", req: r });
   for (const e of cfg.escutas || []) for (const s of e.saidas || []) add({ sinal: s.sinal, rotulo: s.rotulo, unidade: s.unidade, grupo: "Sensores e quadros escutados", esc: e });
   for (const c of cfg.calculados || []) add({ sinal: c.sinal, rotulo: c.rotulo, unidade: c.unidade, grupo: "Calculados", calc: c });
-  add({ sinal: "marcha", grupo: "Calculados pelo app", app: true });
+  for (const n of sinaisDaMarcha(cfg)) add({ sinal: n, grupo: "Calculados pelo app", app: true });
   const gp = cfg.gps_celular;
   if (gp && gp.ativo) { add({ sinal: "velocidade_gps", grupo: "GPS do celular", gps: true }); add({ sinal: "gps_precisao", grupo: "GPS do celular", gps: true }); }
   for (const n of SINAIS_HOD) add({ sinal: n, grupo: "Hodômetro", hod: true });
@@ -807,6 +844,10 @@ const sinaisTempoReal = () => sinaisDasTelas(lay.telas);
 function sinaisNecessarios() {
   const s = sinaisDasTelas(telasDe(vistaPainel() ? pgMon : pgEd));
   if (Registro.gravando) for (const i of Registro.meta.itens) s.add(i.sinal);
+  // Reduzida: a 4L lida do carro e o pedal (a detecção ignora a desaceleração) são pedidos sempre
+  const m = cfg.marcha || {}, R = cfgReduzida(m);
+  if (R.sinal) s.add(R.sinal);
+  if (R.auto && m.fonte !== "sinal") s.add(m.sinal_pedal || "pedal");
   for (let k = 0; k < 3; k++) for (const c of cfg.calculados || []) if (s.has(c.sinal)) depsCalc(c).forEach(d => s.add(d));
   return s;
 }
@@ -854,6 +895,13 @@ function desenharWidget(g, w) {
       topo = alturaFonte(tr) + 4;
       if (reduzida()) { const bh = topo, bw = Math.max(56, bh * 2); rr(g, Math.floor((W - bw) / 2), pad - 2, bw, bh, 5, c565(val(w, "cor_pisca"))); texto(g, "4L", W / 2, pad - 2 + bh / 2, tr, "#000", "center", "middle"); }
       else texto(g, rotulo, W / 2, pad, tr, rot, "center");
+    }
+    // A central informou que não tem este item: escreve em texto (os 7 segmentos não desenham letras)
+    if (w.tipo === "valor" && !ok && Motor.indisponivel(w.sinal)) {
+      const aw = W - 2 * pad, ah = H - topo - 2 * pad, s = ah >= 70 ? "NÃO DISPONÍVEL" : "N/D";
+      let f = FONTES[0]; for (const x of FONTES) if (larguraTxt(g, s, x) <= aw && alturaFonte(x) <= ah) f = x;
+      texto(g, s, W / 2, topo + pad + ah / 2, f, rot, "center", "middle");
+      g.restore(); return;
     }
     let txt, cor;
     if (w.tipo === "valor") { txt = formatar(w, ok, v); cor = !ok ? apag : c565(a ? a.cor : ((val(w, "cor_faixa_rpm") && corFaixaRpm(v)) || val(w, "cor"))); }
@@ -1134,7 +1182,7 @@ const ROTULO_CURTO = { rpm: "RPM", velocidade: "VELOCIDADE", temp_motor: "TEMP. 
   velocidade_gps: "VELOC. GPS", gps_precisao: "PRECISÃO GPS", hodometro: "HODÔM. PARCIAL", hodometro_total: "HODÔM. TOTAL", hodometro_gps: "HODÔM. GPS",
   hodometro_dif: "DIF. GPS %", hodometro_dif_m: "DIF. GPS (m)", temp_extra: "TEMP. EXTRA", entrada_2: "ENTRADA 2", pulsos_vss: "PULSOS VSS", marcha: "MARCHA", satelites: "SATÉLITES" };
 const rotuloCurto = it => ROTULO_CURTO[it.sinal] || String(it.rotulo || it.sinal).toUpperCase().slice(0, 18);
-const casasItem = it => it.sinal === "hodometro_dif" ? 1 : it.sinal === "pressao_trilho" ? 0 : ({ bar: 2, km: 2, "g/s": 1, "L/h": 1, V: 1 }[it.unidade] ?? 0);
+const casasItem = it => it.sinal === "hodometro_dif" ? 1 : it.sinal === "pressao_trilho" ? 0 : it.sinal === "relacao_medida" ? 2 : ({ bar: 2, km: 2, "g/s": 1, "L/h": 1, V: 1 }[it.unidade] ?? 0);
 function escalaItem(it) {
   if (it.sinal === "rpm") { let mx = 0; for (const t of todasTelas(lay)) for (const w of t.widgets) if (w.tipo === "barra_rpm" && w.sinal === "rpm") mx = Math.max(mx, w.max || 0); return [0, mx || 4500]; }
   if (it.sinal === "pressao_trilho") return [0, 2000];
@@ -1187,7 +1235,7 @@ const CAMPOS = {
 };
 const SINAIS_HOD = ["hodometro", "hodometro_total", "hodometro_gps", "hodometro_dif", "hodometro_dif_m"];
 const sinaisConhecidos = () => {
-  const s = new Set(["marcha"]);
+  const s = new Set(sinaisDaMarcha(cfg));
   for (const r of [...(cfg.requisicoes || []), ...(cfg.escutas || [])]) for (const o of r.saidas || []) if (o.sinal) s.add(o.sinal);
   const gp = cfg.gps_celular;
   if (gp && gp.ativo) { if (gp.sinal) s.add(gp.sinal); s.add("velocidade_gps"); s.add("gps_precisao"); }
@@ -1366,8 +1414,14 @@ function montarCarro() {
   $("#c-diferencial").value = m.diferencial ?? ""; $("#c-reduzida").value = m.reduzida ?? ""; $("#c-tolerancia").value = m.tolerancia_pct ?? 15;
   $("#c-patinagem").value = m.patinagem_pct ?? 3; $("#c-circ").value = m.circunferencia_pneu_m ?? ""; $("#c-pneu").value = "";
   $("#c-fonte").value = m.fonte || "calculada";
-  const opcoes = (sel, atual) => { const s = $(sel); s.innerHTML = ""; s.append(el("option", { value: "" }, "nenhum")); for (const n of sinaisConhecidos().filter(n => n !== "marcha")) s.append(el("option", { value: n, selected: n === atual }, n)); };
-  opcoes("#c-sinal-marcha", m.sinal); opcoes("#c-sinal-re", m.sinal_re);
+  const opcoes = (sel, atual) => { const s = $(sel); s.innerHTML = ""; s.append(el("option", { value: "" }, "nenhum")); for (const n of sinaisConhecidos().filter(n => !SINAIS_MARCHA.includes(n))) s.append(el("option", { value: n, selected: n === atual }, n)); };
+  opcoes("#c-sinal-marcha", m.sinal); opcoes("#c-sinal-re", m.sinal_re); opcoes("#c-sinal-red", m.sinal_reduzida);
+  const R = cfgReduzida(m);
+  $("#c-red-box").hidden = !R.tem;
+  $("#c-red-auto").checked = R.auto;
+  $("#c-red-vel").value = m.reduzida_vel_min_kmh ?? 8; $("#c-red-rpm").value = m.reduzida_rpm_min ?? 900;
+  $("#c-red-folga").value = m.reduzida_folga_pct ?? 8; $("#c-red-evid").value = m.reduzida_evidencia_s ?? 2.5;
+  $("#c-red-patin").value = m.reduzida_patinagem_max_pct ?? 35;
   montarEscutas(); montarMedidor(); montarConexao(); montarHodCfg(); montarCalcs(); montarFaixaRpm(); montarAlertas();
   montarReqs();
   $("#cfg-texto").value = JSON.stringify(cfg, null, 2);
@@ -1377,6 +1431,10 @@ function cfgMudou() { $("#cfg-texto").value = JSON.stringify(cfg, null, 2); salv
 $("#c-fonte").addEventListener("change", e => { cfg.marcha.fonte = e.target.value; cfgMudou(); });
 $("#c-sinal-marcha").addEventListener("change", e => { cfg.marcha.sinal = e.target.value; cfgMudou(); });
 $("#c-sinal-re").addEventListener("change", e => { cfg.marcha.sinal_re = e.target.value; cfgMudou(); });
+$("#c-sinal-red").addEventListener("change", e => { cfg.marcha.sinal_reduzida = e.target.value; cfgMudou(); });
+$("#c-red-auto").addEventListener("change", e => { cfg.marcha.reduzida_auto = e.target.checked; cfgMudou(); });
+for (const [id, k] of [["#c-red-vel", "reduzida_vel_min_kmh"], ["#c-red-rpm", "reduzida_rpm_min"], ["#c-red-folga", "reduzida_folga_pct"], ["#c-red-evid", "reduzida_evidencia_s"], ["#c-red-patin", "reduzida_patinagem_max_pct"]])
+  $(id).addEventListener("input", e => { const v = parseFloat(e.target.value); if (isFinite(v) && v >= 0) { cfg.marcha[k] = v; cfgMudou(); } });
 for (const [id, k] of [["#c-diferencial", "diferencial"], ["#c-reduzida", "reduzida"], ["#c-tolerancia", "tolerancia_pct"], ["#c-patinagem", "patinagem_pct"], ["#c-circ", "circunferencia_pneu_m"]])
   $(id).addEventListener("input", e => { const v = parseFloat(e.target.value); if (isFinite(v)) { cfg.marcha[k] = v; cfgMudou(); } });
 $("#c-pneu").addEventListener("input", e => {
@@ -1545,7 +1603,9 @@ $("#lay-padrao").addEventListener("click", () => confirmar($("#restaura-confirma
 }));
 
 // ---------------- rascunho local ----------------
-const CHAVE = "painelRally.app";
+// Com ?teste no endereço (testes/), o app guarda tudo à parte e não registra o service worker
+const MODO_TESTE = new URLSearchParams(location.search).has("teste");
+const CHAVE = MODO_TESTE ? "painelRally.teste" : "painelRally.app";
 // Cada carro guarda vários layouts com nome; "layout" aponta para o que está em uso
 function salvarRascunho() {
   sincronizar();
@@ -1578,7 +1638,7 @@ const ORDEM_COMP = ["turbo", "map", "carga", "pedal", "pressao_trilho", "temp_ol
   "velocidade_gps", "gps_precisao", "hodometro_gps", "hodometro_dif_m", "hodometro_dif", "hodometro_total"];
 function telasCompAuto(c, l) {
   const rt = sinaisDasTelas(l.telas), pos = n => { const i = ORDEM_COMP.indexOf(n); return i < 0 ? 999 : i; };
-  const itens = catalogoSinais(c).filter(it => !rt.has(it.sinal) && it.sinal !== "marcha").sort((a, b) => pos(a.sinal) - pos(b.sinal));
+  const itens = catalogoSinais(c).filter(it => !rt.has(it.sinal) && !SINAIS_MARCHA.includes(it.sinal)).sort((a, b) => pos(a.sinal) - pos(b.sinal));
   const telas = [];
   for (let k = 0; k < itens.length && telas.length < 4; k += 9)
     telas.push({ nome: `Tela ${telas.length + 1}`, fundo: "#05070a", widgets: itens.slice(k, k + 9).map((it, i) => ({
@@ -1731,7 +1791,18 @@ const bytesDe = h => { const o = []; for (let i = 0; i + 1 < h.length; i += 2) o
 
 const Motor = {
   sinais: {}, brutos: {}, respostas: 0, respPorSeg: 0, falhasTotal: 0, ultimaResposta: 0, ponte: null,
+  // PIDs do serviço 01 que cada central diz ter: { "7E0": Set } (null = a central não informou)
+  suporte: {},
   ativo() { return Conexao.ativa; },
+  // Sinal que só vem de pedidos que a central diz não ter
+  indisponivel(nome) {
+    const p = Conexao.fonte && Conexao.fonte.p;
+    if (!nome || !this.ativo() || !p) return false;
+    if (p.escs.some(e => e.saidas.some(o => o.sinal === nome))) return false;
+    const rs = p.reqs.filter(r => r.saidas.some(o => o.sinal === nome));
+    return rs.length > 0 && rs.every(r => r.indisponivel);
+  },
+  pedidoAgora(nome) { const p = Conexao.fonte && Conexao.fonte.p; return !!p && [...p.reqs, ...p.escs].some(r => r.saidas.some(o => o.sinal === nome)); },
   publicar(nome, v, validade, u) {
     const s = this.sinais[nome] || (this.sinais[nome] = { v: 0, t: 0, validade: validade || 1500, u: u || "" });
     s.v = v; s.t = performance.now(); if (validade) s.validade = validade; if (u) s.u = u;
@@ -1739,16 +1810,19 @@ const Motor = {
   valido(nome) { const s = this.sinais[nome]; return !!s && s.t > 0 && performance.now() - s.t <= s.validade; },
   valor(nome) { const s = this.sinais[nome]; return s ? s.v : 0; },
   recebendo() { return this.ultimaResposta > 0 && performance.now() - this.ultimaResposta < 2000; },
-  limpar() { this.sinais = {}; this.brutos = {}; this.ultimaResposta = 0; this.ponte = null; this.falhasTotal = 0; },
+  limpar() { this.sinais = {}; this.brutos = {}; this.ultimaResposta = 0; this.ponte = null; this.falhasTotal = 0; this.suporte = {}; },
   diagnostico() {
-    const agora = performance.now(), p = this.ponte || {};
+    const agora = performance.now(), p = this.ponte || {}, pl = (Conexao.fonte && Conexao.fonte.p) || { reqs: [], escs: [] };
     const sinais = {};
     for (const [n, s] of Object.entries(this.sinais)) sinais[n] = { v: s.v, ok: this.valido(n), u: s.u };
+    // Só os pedidos que estão na agenda agora, na ordem da configuração (inclusive os que nunca responderam)
+    const bruto = (chave, nome, req, extra) => { const b = this.brutos[chave] || {}; return { nome, req, dados: b.dados || "", idade_ms: b.t ? Math.round(agora - b.t) : -1, ...extra }; };
     return {
       can: { driver: Conexao.estado === "conectado", ecu: this.recebendo(), resp_s: this.respPorSeg, sem_resposta: this.falhasTotal,
              quadros: p.quadrosS ?? "não informado", erros_tx: p.errTx ?? 0, erros_rx: p.errRx ?? 0 },
       sinais,
-      brutos: Object.values(this.brutos).map(b => ({ ...b, idade_ms: b.t ? Math.round(agora - b.t) : -1 })),
+      brutos: [...pl.reqs.map(r => bruto(chaveReq(r), r.nome, `${r.cab} ${r.svcTxt} ${r.pidTxt}`, { falhas: r.falhas, indisponivel: !!r.indisponivel })),
+               ...pl.escs.map(e => bruto("e" + e.idTxt, e.nome, `escuta ${e.idTxt}`, { falhas: 0 }))],
     };
   },
 };
@@ -1782,15 +1856,17 @@ function respostaOk(r, p) {
   if (r.pidLen === 2 && (p[1] !== (r.pid >> 8) || p[2] !== (r.pid & 0xFF))) return false;
   return true;
 }
+// Bytes guardados pelo pedido em si (não pela posição na agenda, que muda a cada página)
+const chaveReq = r => `r${r.cab}:${r.svcTxt}:${r.pidTxt}`;
 function aplicarResposta(r, p) {
   const dados = p.slice(1 + r.pidLen);
   for (const o of r.saidas) { const x = avaliar(o.formula, dados); if (x.ok) Motor.publicar(o.sinal, x.v, r.validade, o.unidade); }
-  Motor.brutos["r" + r.idx] = { nome: r.nome, req: `${r.cab} ${r.svcTxt} ${r.pidTxt}`, dados: hexDe(dados), t: performance.now(), falhas: r.falhas };
+  Motor.brutos[chaveReq(r)] = { dados: hexDe(dados), t: performance.now() };
   Motor.respostas++; Motor.ultimaResposta = performance.now();
 }
 function aplicarEscuta(e, d) {
   for (const o of e.saidas) { const x = avaliar(o.formula, d); if (x.ok) Motor.publicar(o.sinal, x.v, e.validade, o.unidade); }
-  Motor.brutos["e" + e.idx] = { nome: e.nome, req: `escuta ${e.idTxt}`, dados: hexDe(d), t: performance.now(), falhas: 0 };
+  Motor.brutos["e" + e.idTxt] = { dados: hexDe(d), t: performance.now() };
   Motor.respostas++; Motor.ultimaResposta = performance.now();
 }
 
@@ -1813,7 +1889,7 @@ const SERVICOS_ELM = ["0000fff0-0000-1000-8000-00805f9b34fb", "0000ffe0-0000-100
   "000018f0-0000-1000-8000-00805f9b34fb", "e7810a71-73ae-499d-8c15-faa9aef0c3f2"];
 
 class FonteElm {
-  constructor(p) { this.p = p; this.buf = ""; this.espera = null; this.cab = ""; this.vivo = true; this.fila = []; }
+  constructor(p) { this.p = p; this.buf = ""; this.espera = null; this.cab = ""; this.vivo = true; this.fila = []; this.supOk = false; this.supProx = 0; this.supTent = {}; }
   async abrir(dev) {
     const gatt = await dev.gatt.connect();
     let rx = null, tx = null;
@@ -1859,7 +1935,46 @@ class FonteElm {
     const resps = txt === null ? null : lerElm(txt);
     return resps ? resps.find(p => respostaOk(r, p)) || null : null;
   }
-  reconfigurar(p) { this.p = p; }
+  reconfigurar(p) { this.p = p; this.supOk = false; this.marcarSuporte(); }
+  // PIDs do serviço 01 que cada central diz ter (pedidos 01 00, 01 20, 01 40...: 32 bits cada, o último diz se há mais)
+  async lerSuporte() {
+    const cabs = [...new Set(this.p.reqs.filter(r => r.svc === 1 && r.pidLen === 1).map(r => r.cab))];
+    let tudo = true;
+    for (const cab of cabs) {
+      if (cab in Motor.suporte) continue;
+      if (!this.vivo) return false;
+      const s = new Set(); let base = 0, ok = false;
+      if (cab !== this.cab) { if (await this.cmd("ATSH" + cab, 1000) === null) { tudo = false; continue; } this.cab = cab; }
+      while (base < 0xE0) {
+        const pid = base.toString(16).toUpperCase().padStart(2, "0");
+        const txt = await this.cmd("01" + pid, 1500), resps = txt === null ? null : lerElm(txt);
+        const ps = (resps || []).filter(p => p[0] === 0x41 && p[1] === base && p.length >= 6);
+        if (!ps.length) break;
+        ok = true;
+        for (const p of ps) for (let i = 0; i < 32; i++) if (p[2 + (i >> 3)] & (0x80 >> (i & 7))) s.add(base + i + 1);
+        if (!s.has(base + 0x20)) break;
+        base += 0x20;
+      }
+      if (ok) Motor.suporte[cab] = s;
+      else {
+        // Sem resposta: tenta de novo depois (ignição pode estar desligada); com o carro respondendo, desiste na 3ª vez
+        this.supTent[cab] = (this.supTent[cab] || 0) + (Motor.recebendo() ? 1 : 0);
+        if (this.supTent[cab] >= 3) Motor.suporte[cab] = null; else tudo = false;
+      }
+    }
+    this.marcarSuporte();
+    return tudo;
+  }
+  marcarSuporte() {
+    for (const r of this.p.reqs) { const s = Motor.suporte[r.cab]; r.indisponivel = r.svc === 1 && r.pidLen === 1 && r.pid !== 0 && s instanceof Set && !s.has(r.pid); }
+  }
+  // Pedido digitado no Diagnóstico. Só serviços de leitura: nada que apague códigos, grave ou reinicie a central.
+  manual(cab, comando) {
+    return this.entre(async () => {
+      if (cab !== this.cab) { if (await this.cmd("ATSH" + cab, 1000) === null) return null; this.cab = cab; }
+      return await this.cmd(comando, 3000);
+    });
+  }
   // Tarefa avulsa (ex.: ler códigos de falha): roda entre dois pedidos da agenda, sem atropelar o adaptador
   entre(f) { return new Promise((ok, falha) => this.fila.push(async () => { try { ok(await f()); } catch (e) { falha(e); } })); }
   // Códigos de falha de cada central: 03 = confirmados, 07 = pendentes
@@ -1876,13 +1991,18 @@ class FonteElm {
       return { codigos, semResposta, modulos: cabs.length };
     });
   }
-  // Mesma agenda da ponte: o pedido mais atrasado primeiro; PID sem resposta é tentado a cada 30 s
+  // Mesma agenda da ponte: o pedido mais atrasado primeiro; PID sem resposta é tentado a cada 30 s.
+  // PID que a central diz não ter não é pedido.
   async laco() {
     while (this.vivo) {
       if (this.fila.length) { await this.fila.shift()(); continue; }
+      if (!this.supOk && performance.now() >= this.supProx) {
+        this.supOk = await this.lerSuporte(); this.supProx = performance.now() + 30000;
+        continue;
+      }
       const agora = performance.now(), online = Motor.recebendo();
       let esc = null, maior = -1;
-      for (const r of this.p.reqs) { const a = agora - r.proximo; if (a >= 0 && a > maior) { maior = a; esc = r; } }
+      for (const r of this.p.reqs) { if (r.indisponivel) continue; const a = agora - r.proximo; if (a >= 0 && a > maior) { maior = a; esc = r; } }
       if (!esc) { await dormir(5); continue; }
       const inicio = performance.now(), resp = await this.consultar(esc);
       if (!this.vivo) break;
@@ -2258,26 +2378,99 @@ addEventListener("pagehide", () => { if (Hodometro.e) Hodometro.salvar(); });
 document.addEventListener("visibilitychange", () => { if (document.hidden && Hodometro.e) Hodometro.salvar(); });
 
 // ---------------- marcha (mesma lógica do firmware) ----------------
+// Reduzida (4L): padrões dos campos de cfg.marcha. A detecção só existe em carro com reduzida > 1.
+function cfgReduzida(m) {
+  const tem = (m.reduzida || 1) > 1.01;
+  return { tem, auto: tem && m.reduzida_auto !== false, vel: m.reduzida_vel_min_kmh ?? 8, rpm: m.reduzida_rpm_min ?? 900,
+    folga: Math.log(1 + (m.reduzida_folga_pct ?? 8) / 100), evid: (m.reduzida_evidencia_s ?? 2.5) * 1000, patin: Math.log(1 + (m.reduzida_patinagem_max_pct ?? 35) / 100),
+    sinal: tem ? (m.sinal_reduzida || "") : "" };
+}
+const ORIGEM_RED = { auto: 0, manual: 1, carro: 2 };
 const Marcha = {
   atual: 0, cand: 0, desde: 0, fora: 0, red: false,
-  zerar() { this.atual = this.cand = 0; this.desde = this.fora = 0; this.red = false; },
+  // origem do modo 4H/4L: "auto" (detecção), "manual" (toque longo) ou "carro" (sinal_reduzida)
+  origem: "auto", tL: 0, tH: 0, decidido: false, paradoDesde: 0, ultimo: 0, rpmLento: null, medida: null,
+  silencio: false,  // testes: sem aviso na tela ao trocar o modo
+  zerar() {
+    this.atual = this.cand = 0; this.desde = this.fora = 0; this.red = false;
+    Object.assign(this, { origem: "auto", tL: 0, tH: 0, decidido: false, paradoDesde: 0, ultimo: 0, rpmLento: null, medida: null });
+  },
+  // Relação total medida: rpm ÷ rotação da roda (null parado ou sem rpm)
+  relacao(m, rpm, vel) { return rpm >= 400 && vel >= 1 ? rpm / (vel / 3.6 / (m.circunferencia_pneu_m || 2) * 60) : null; },
+  // Marcha mais próxima numa tabela (fator 1 = 4H, reduzida = 4L) e o erro em log, já sem o viés de patinagem
+  melhor(m, medida, fator) {
+    const vies = Math.log(1 + (m.patinagem_pct ?? 3) / 100);
+    let marcha = -1, erro = 1e9;
+    (m.relacoes || []).forEach((r, i) => { const e = Math.abs(Math.log(medida / (r * (m.diferencial || 1) * fator)) - vies); if (e < erro) { erro = e; marcha = i + 1; } });
+    return { marcha, erro };
+  },
+  // Alguma marcha da tabela explica a relação medida com o conversor patinando entre −folga e a patinagem máxima?
+  // O conversor só deixa a relação medida maior que a da marcha (a roda gira menos que o motor manda).
+  explica(m, medida, fator, R) {
+    return (m.relacoes || []).some(r => { const x = Math.log(medida / (r * (m.diferencial || 1) * fator)); return x >= -R.folga && x <= R.patin; });
+  },
   calcular(m) {
     const rpm = Motor.valor(m.sinal_rpm || "rpm"), vel = Motor.valor(m.sinal_velocidade || "velocidade");
     if (rpm < 400 || vel < (m.vel_minima_kmh ?? 4)) return 0;
-    const roda = vel / 3.6 / (m.circunferencia_pneu_m || 2) * 60, medida = rpm / roda;
-    const fator = this.red ? (m.reduzida || 1) : 1, vies = Math.log(1 + (m.patinagem_pct ?? 3) / 100);
-    let melhor = -1, erro = 1e9;
-    (m.relacoes || []).forEach((r, i) => { const e = Math.abs(Math.log(medida / (r * (m.diferencial || 1) * fator)) - vies); if (e < erro) { erro = e; melhor = i; } });
-    return melhor < 0 || erro > Math.log(1 + (m.tolerancia_pct ?? 15) / 100) ? -99 : melhor + 1;
+    const b = this.melhor(m, this.relacao(m, rpm, vel), this.red ? (m.reduzida || 1) : 1);
+    return b.marcha < 0 || b.erro > Math.log(1 + (m.tolerancia_pct ?? 15) / 100) ? -99 : b.marcha;
   },
-  passo(c) {
-    const m = c.marcha || {}, agora = performance.now();
+  // Toque longo: põe o modo à mão; vale até a próxima parada (a detecção não desfaz no mesmo trecho)
+  alternarManual(m) {
+    if (!cfgReduzida(m).tem) return false;
+    this.red = !this.red; this.origem = "manual"; this.tL = this.tH = 0; this.decidido = true;
+    return true;
+  },
+  // 4H ou 4L: pelo sinal do carro, se houver; senão, pela relação medida (só muda depois de uma parada)
+  detectar(m, agora) {
+    const R = cfgReduzida(m), dt = this.ultimo ? Math.min(500, Math.max(0, agora - this.ultimo)) : 0;
+    this.ultimo = agora;
+    if (!R.tem) { this.red = false; this.origem = "auto"; return; }
+    if (R.sinal && Motor.valido(R.sinal)) {
+      this.red = Motor.valor(R.sinal) >= 0.5; this.origem = "carro"; this.tL = this.tH = 0; this.decidido = true; return;
+    }
+    if (this.origem === "carro") { this.origem = "auto"; this.decidido = false; }  // o sinal sumiu: a conta assume, a partir do último modo lido
+    const sr = m.sinal_rpm || "rpm", sv = m.sinal_velocidade || "velocidade";
+    if (!Motor.valido(sr) || !Motor.valido(sv)) return;
+    const rpm = Motor.valor(sr), vel = Motor.valor(sv);
+    const caindo = this.rpmLento !== null && rpm < this.rpmLento - 40;
+    this.rpmLento = this.rpmLento === null ? rpm : this.rpmLento + (rpm - this.rpmLento) * Math.min(1, dt / 400);
+    // Parado 2 s: novo trecho. A Mitsubishi só troca 4H↔4LLc parada em N, então cada trecho tem um modo só.
+    if (vel < 1) {
+      if (!this.paradoDesde) this.paradoDesde = agora;
+      if (agora - this.paradoDesde >= 2000) { this.tL = this.tH = 0; this.decidido = false; if (this.origem === "manual") this.origem = "auto"; }
+      return;
+    }
+    this.paradoDesde = 0;
+    if (!R.auto || this.decidido) return;
+    // Evidência só andando, com rpm acima da lenta e sem desacelerar (conversor patina na saída e na desaceleração)
+    const sp = m.sinal_pedal || "pedal", temPedal = Motor.valido(sp);
+    if (vel < R.vel || rpm < R.rpm || (temPedal ? Motor.valor(sp) <= 3 : caindo)) return;
+    const medida = this.relacao(m, rpm, vel), tol = Math.log(1 + (m.tolerancia_pct ?? 15) / 100);
+    const eH = this.melhor(m, medida, 1).erro, eL = this.melhor(m, medida, m.reduzida).erro;
+    // Para sair do modo atual, nem com o conversor patinando ele pode explicar a relação. Em 4LLc, a 5ª da reduzida
+    // patinando 26% dá a mesma relação que a 2ª em 4H (L200, 21/11/2026, 11:44:28): isso não pode virar 4H.
+    if (eL <= R.folga && eH > tol && (this.red || !this.explica(m, medida, 1, R))) this.tL += dt;
+    else if (eH <= R.folga && eL > tol && (!this.red || !this.explica(m, medida, m.reduzida, R))) this.tH += dt;
+    const quer = this.tL >= R.evid && this.tL > 2 * this.tH ? true : (this.tH >= R.evid && this.tH > 2 * this.tL ? false : null);
+    if (quer === null) return;
+    // Decidido (trocou ou confirmou o modo): fica assim até a próxima parada
+    this.decidido = true; this.tL = this.tH = 0; this.origem = "auto";
+    if (quer !== this.red) { this.red = quer; if (!Marcha.silencio) toast(quer ? "4L detectada" : "4H detectada"); }
+  },
+  passo(c, agora = performance.now()) {
+    const m = c.marcha || {};
+    this.detectar(m, agora);
+    const sr = m.sinal_rpm || "rpm", sv = m.sinal_velocidade || "velocidade";
+    this.medida = Motor.valido(sr) && Motor.valido(sv) ? this.relacao(m, Motor.valor(sr), Motor.valor(sv)) : null;
+    if (this.medida !== null) Motor.publicar("relacao_medida", Math.round(this.medida * 100) / 100, 1500);
+    if (cfgReduzida(m).tem) { Motor.publicar("reduzida", this.red ? 1 : 0, 1500); Motor.publicar("reduzida_origem", ORIGEM_RED[this.origem], 1500); }
     if (m.sinal_re && Motor.valido(m.sinal_re) && Motor.valor(m.sinal_re) >= 0.5) { this.atual = this.cand = -1; Motor.publicar("marcha", -1, 1500); return; }
     const util = () => Motor.valido(m.sinal) && Motor.valor(m.sinal) >= -1 && Motor.valor(m.sinal) <= 9;
     let nova;
     if (m.fonte === "sinal" || (m.fonte === "auto" && util())) { if (!util()) return; nova = Math.round(Motor.valor(m.sinal)); }
     else {
-      if (!Motor.valido(m.sinal_rpm || "rpm") || !Motor.valido(m.sinal_velocidade || "velocidade")) return;
+      if (!Motor.valido(sr) || !Motor.valido(sv)) return;
       nova = this.calcular(m);
       if (nova === -99) { if (!this.fora) this.fora = agora; nova = agora - this.fora >= (m.indefinida_apos_ms ?? 1500) ? 0 : this.atual; }
       else this.fora = 0;
@@ -2391,7 +2584,7 @@ $("#painel-canvas").addEventListener("pointerup", () => soltarPainel(false));
 $("#painel-canvas").addEventListener("pointercancel", () => soltarPainel(true));
 $("#painel-canvas").addEventListener("contextmenu", e => e.preventDefault());
 function alternarReduzida() {
-  if (Motor.ativo()) { if (((cfg.marcha && cfg.marcha.reduzida) || 1) > 1.01) Marcha.red = !Marcha.red; }
+  if (Motor.ativo()) Marcha.alternarManual(cfg.marcha || {});
   else { const c = $("#s-reduzida"); c.checked = !c.checked; }
 }
 function toqueLongoPainel(p) {
@@ -2474,7 +2667,7 @@ function montarConexao() {
   $("#c-gps").checked = !!g.ativo;
   const s = $("#c-gps-sinal"), atualG = g.sinal === undefined ? "velocidade" : g.sinal; s.innerHTML = "";
   s.append(el("option", { value: "", selected: atualG === "" }, "nenhum (só hodômetro e precisão)"));
-  const proprios = ["marcha", "velocidade_gps", "gps_precisao", ...SINAIS_HOD];
+  const proprios = [...SINAIS_MARCHA, "velocidade_gps", "gps_precisao", ...SINAIS_HOD];
   for (const n of new Set([atualG || "velocidade", "velocidade", ...sinaisConhecidos().filter(n => !proprios.includes(n))])) s.append(el("option", { value: n, selected: n === atualG }, n));
   let nota = "";
   if (tipo === "elm327") nota = (cfg.escutas || []).length
@@ -2494,7 +2687,7 @@ $("#c-gps-sinal").addEventListener("change", e => { cfg.gps_celular.sinal = e.ta
 function montarHodCfg() {
   const h = Hodometro.cfgH(), gp = cfg.gps_celular || {};
   const s = $("#h-sinal"), atualS = h.sinal || "velocidade"; s.innerHTML = "";
-  const opcoes = new Set([atualS, ...sinaisConhecidos().filter(n => !["marcha", "gps_precisao", ...SINAIS_HOD].includes(n))]);
+  const opcoes = new Set([atualS, ...sinaisConhecidos().filter(n => ![...SINAIS_MARCHA, "gps_precisao", ...SINAIS_HOD].includes(n))]);
   for (const n of opcoes) s.append(el("option", { value: n, selected: n === atualS }, n === "velocidade_gps" ? "velocidade_gps (GPS do celular)" : n));
   $("#h-fator").value = +h.fator || 1; $("#h-passo").value = Hodometro.passo(); $("#h-alerta").value = +h.alerta_dif_pct || 2;
   $("#h-gps").checked = h.comparar_gps !== false;
@@ -2581,14 +2774,90 @@ function atualizarDiag() {
     bytes.forEach((x, i) => { if (ant[i] !== undefined && ant[i] !== x) mud[i] = agora; });
     ultimosBytes[b.req] = bytes;
     const cel = bytes.map((x, i) => el("span", { class: "byte" + (mud[i] && agora - mud[i] < 3000 ? " mudou" : "") }, x, el("small", {}, String.fromCharCode(65 + i))));
-    const estado = b.idade_ms < 0 ? el("span", { class: "bad-txt small" }, b.falhas >= 5 ? "a central não responde a este pedido" : "aguardando resposta") : el("span", { class: "muted small" }, `há ${b.idade_ms} ms`);
+    const idade = idadeTxt(b.idade_ms), [cls, txt] =
+      b.indisponivel ? ["warn-txt", "não disponível neste carro (não é mais pedido)"]
+      : b.idade_ms < 0 ? ["bad-txt", b.falhas >= 5 ? "a central não responde a este pedido" : "aguardando resposta"]
+      : b.falhas >= 5 ? ["bad-txt", `parou de responder (última resposta há ${idade})`]
+      : ["muted", `há ${idade}`];
+    const estado = el("span", { class: cls + " small" }, txt);
     box.append(el("div", { class: "req" }, el("div", { class: "linha" }, el("strong", {}, b.nome || b.sinal || ""), el("span", { class: "muted small", style: "font-family:var(--f-code)" }, b.req), estado), el("div", { class: "bytes" }, ...cel)));
   }
   const ts = $("#diag-sinais"); ts.innerHTML = "";
   ts.append(el("tr", {}, el("th", {}, "Sinal"), el("th", {}, "Valor"), el("th", {}, "Estado")));
-  for (const [n, s] of Object.entries(d.sinais || {})) ts.append(el("tr", {}, el("td", {}, n), el("td", { class: "num" }, s.ok ? `${+Number(s.v).toFixed(2)} ${s.u || ""}` : "---"), el("td", { class: s.ok ? "ok-txt" : "bad-txt" }, s.ok ? "ok" : "sem dado")));
+  for (const [n, s] of Object.entries(d.sinais || {})) {
+    const [cls, txt] = s.ok ? ["ok-txt", "ok"] : d.exemplo ? ["bad-txt", "sem dado"]
+      : Motor.indisponivel(n) ? ["warn-txt", "não disponível neste carro"]
+      : !Motor.pedidoAgora(n) ? ["muted", "não pedido agora (fora da página aberta)"]
+      : ["bad-txt", "sem dado"];
+    ts.append(el("tr", {}, el("td", {}, n), el("td", { class: "num" }, s.ok ? `${+Number(s.v).toFixed(2)} ${s.u || ""}` : "---"), el("td", { class: cls }, txt)));
+  }
+  montarSuporte();
 }
+const idadeTxt = ms => ms < 1000 ? `${ms} ms` : ms < 60000 ? `${Math.round(ms / 1000)} s` : ms < 3600000 ? `${Math.round(ms / 60000)} min` : `${(ms / 3600000).toFixed(1).replace(".", ",")} h`;
 setInterval(atualizarDiag, 500);
+
+// O que cada central diz fornecer, comparado com os pedidos do serviço 01 do perfil
+const hex2 = n => n.toString(16).toUpperCase().padStart(2, "0");
+function montarSuporte() {
+  const info = $("#sup-info"), tab = $("#sup-tabela"); tab.innerHTML = "";
+  if (!Motor.ativo()) { info.textContent = "Conecte ao carro para ver."; return; }
+  if (Conexao.tipo !== "elm327") { info.textContent = "A ponte ESP32 não faz esta leitura; só o adaptador ELM327."; return; }
+  const reqs = (cfg.requisicoes || []).filter(r => r.ativo !== false && String(r.servico || "01").padStart(2, "0") === "01" && String(r.pid || "").trim().length === 2);
+  const cabs = [...new Set(reqs.map(r => String(r.cabecalho || "7DF").toUpperCase()))];
+  const linhas = [];
+  for (const cab of cabs) {
+    const s = Motor.suporte[cab];
+    if (s === undefined) linhas.push(`Central ${cab} (${nomeModulo(cab)}): verificando…`);
+    else if (s === null) linhas.push(`Central ${cab} (${nomeModulo(cab)}): não informou a lista; o app pede tudo.`);
+    else {
+      const usados = new Set(reqs.filter(r => String(r.cabecalho || "7DF").toUpperCase() === cab).map(r => parseInt(r.pid, 16)));
+      const outros = [...s].filter(p => p % 32 !== 0 && !usados.has(p)).sort((a, b) => a - b).map(hex2);
+      linhas.push(`Central ${cab} (${nomeModulo(cab)}): fornece ${[...s].filter(p => p % 32 !== 0).length} itens padrão.` + (outros.length ? ` Também tem, sem uso no perfil: ${outros.join(" ")}.` : ""));
+    }
+  }
+  info.textContent = linhas.join(" ");
+  tab.append(el("tr", {}, el("th", {}, "Item"), el("th", {}, "Pedido"), el("th", {}, "Situação")));
+  for (const r of reqs) {
+    const cab = String(r.cabecalho || "7DF").toUpperCase(), s = Motor.suporte[cab], pid = parseInt(r.pid, 16);
+    const [cls, txt] = s instanceof Set ? (s.has(pid) ? ["ok-txt", "fornece"] : ["warn-txt", "não disponível"]) : ["muted", s === null ? "não informado" : "verificando…"];
+    tab.append(el("tr", {}, el("td", {}, r.nome || r.pid), el("td", { class: "num", style: "white-space:nowrap" }, `${cab} 01 ${String(r.pid).toUpperCase()}`), el("td", { class: cls }, txt)));
+  }
+}
+$("#sup-ler").addEventListener("click", () => {
+  const f = Conexao.fonte;
+  if (!Motor.ativo() || Conexao.tipo !== "elm327" || !f || !f.lerSuporte) { toast("Conecte ao carro pelo adaptador ELM327 primeiro."); return; }
+  Motor.suporte = {}; f.supTent = {}; f.supOk = false; f.supProx = 0; f.marcarSuporte();
+  toast("Perguntando à central o que ela fornece");
+});
+
+// Pedido avulso digitado no Diagnóstico
+const SERVICOS_LEITURA = ["01", "02", "03", "06", "07", "09", "21", "22"];
+const testes = [];
+$("#tp-enviar").addEventListener("click", async () => {
+  const cab = $("#tp-cab").value.replace(/\s/g, "").toUpperCase(), cmd = $("#tp-cmd").value.replace(/\s/g, "").toUpperCase();
+  const est = $("#tp-estado"), bt = $("#tp-enviar"), f = Conexao.fonte;
+  if (!Motor.ativo() || Conexao.tipo !== "elm327" || !f || !f.manual) { est.textContent = "Conecte ao carro pelo adaptador ELM327 primeiro."; return; }
+  if (!/^[0-9A-F]{3}$/.test(cab)) { est.textContent = "Central: 3 dígitos hex, como 7E0 (motor) ou 7E1 (câmbio)."; return; }
+  if (!/^([0-9A-F]{2}){1,7}$/.test(cmd) || !SERVICOS_LEITURA.includes(cmd.slice(0, 2))) { est.textContent = "Pedido: hex de um serviço de leitura, como 2102 ou 010C."; return; }
+  est.textContent = "enviando…"; bt.disabled = true;
+  const txt = await Promise.race([f.manual(cab, cmd), dormir(8000).then(() => null)]);
+  bt.disabled = false; est.textContent = "";
+  const resps = txt === null ? null : lerElm(txt), pula = cmd.length / 2;
+  let res;
+  if (txt === null) res = { erro: "o adaptador não respondeu" };
+  else if (!resps || !resps.length) res = { erro: "sem resposta da central (" + String(txt).replace(/[>\r\n]+/g, " ").trim() + ")" };
+  else if (resps.every(p => p[0] === 0x7F)) res = { erro: `a central recusou o pedido (código ${hex2(resps[0][2] || 0)})` };
+  else res = { resps: resps.filter(p => p[0] !== 0x7F) };
+  testes.unshift({ quando: new Date().toLocaleTimeString("pt-BR"), req: `${cab} ${cmd.match(/../g).join(" ")}`, pula, ...res });
+  testes.length = Math.min(testes.length, 8);
+  const box = $("#tp-saida"); box.innerHTML = "";
+  for (const t of testes) {
+    const corpo = t.erro ? [el("span", { class: "bad-txt small" }, t.erro)]
+      : t.resps.map(p => el("div", { class: "bytes" }, ...p.slice(t.pula).map((x, i) => el("span", { class: "byte" }, hex2(x), el("small", {}, String.fromCharCode(65 + i))))));
+    box.append(el("div", { class: "req" }, el("div", { class: "linha" }, el("strong", {}, t.req), el("span", { class: "muted small" }, t.quando),
+      t.erro ? null : el("span", { class: "muted small" }, `${t.resps[0].length - t.pula} bytes de dados`)), ...corpo));
+  }
+});
 
 // ---------------- simulação ----------------
 function ligarSim() {
@@ -2632,7 +2901,7 @@ const Banco = {
     if (this.db !== null) return this.db;
     try {
       this.db = await new Promise((ok, erro) => {
-        const r = indexedDB.open("painelRally", 1);
+        const r = indexedDB.open(MODO_TESTE ? "painelRally-teste" : "painelRally", 1);
         r.onupgradeneeded = () => { const d = r.result; d.createObjectStore("logs", { keyPath: "id" }); d.createObjectStore("partes", { keyPath: ["id", "seq"] }); };
         r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error);
       });
@@ -2666,7 +2935,10 @@ const Registro = {
   },
   async iniciar(auto = false) {
     if (this.gravando) return true;
-    const L = cfgLog(), itens = (L.itens || []).filter(n => sinaisConhecidos().includes(n)).map(n => { const i = itemSinal(n); return { sinal: n, rotulo: i.rotulo, unidade: i.unidade }; });
+    // Com a marcha no log, vêm junto a relação medida e, em carro com reduzida, o modo 4L e a origem dele
+    const L = cfgLog(), nomes = [];
+    for (const n of L.itens || []) { if (!nomes.includes(n)) nomes.push(n); if (n === "marcha") for (const x of sinaisDaMarcha(cfg).slice(1)) if (!nomes.includes(x) && !(L.itens || []).includes(x)) nomes.push(x); }
+    const itens = nomes.filter(n => sinaisConhecidos().includes(n)).map(n => { const i = itemSinal(n); return { sinal: n, rotulo: i.rotulo, unidade: i.unidade }; });
     if (!itens.length) { toast("Escolha os itens do log em Configuração → Log"); if (!auto) { irPara("cfg"); abrirAba("log"); } atualizarRec(); return false; }
     const intervalo = Math.max(100, +L.intervalo_ms || 1000), agora = Date.now();
     this.meta = { id: agora, carro: carroId, nome_carro: nomeCarro(cfg), inicio: agora, fim: agora, intervalo_ms: intervalo, itens, linhas: 0, encerrado: false, auto };
@@ -2937,7 +3209,7 @@ $("#al-nova").addEventListener("click", () => {
   let pg = "cfg"; try { pg = { painel: "rt", rt: "rt", comp: "comp", p2: "p2" }[localStorage.getItem(CHAVE + ".vista")] || "cfg"; } catch {}
   irPara(pg, false);
   Registro.recuperar();
-  if ("serviceWorker" in navigator && window.isSecureContext && !/claude/.test(location.hostname)) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (!MODO_TESTE && "serviceWorker" in navigator && window.isSecureContext && !/claude/.test(location.hostname)) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
 
