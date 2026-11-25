@@ -392,6 +392,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
         <h3>Outros widgets</h3>
         <div class="linha" id="add-widgets">
           <button data-add="marcha">Marcha</button>
+          <button data-add="tracao">Tração 4H/4L</button>
           <button data-add="hodometro">Hodômetro</button>
           <button data-add="log">Indicador de log</button>
           <button data-add="status">Status da ECU</button>
@@ -399,7 +400,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
           <button data-add="texto">Texto</button>
           <button data-add="retangulo">Retângulo</button>
         </div>
-        <p class="nota">No painel, <strong>toque</strong> nos códigos de falha para ver a lista e buscar o que cada um significa. <strong>Toque longo</strong>: sobre a marcha alterna 4H e 4L; sobre o indicador de log liga ou desliga o log; sobre o hodômetro zera o parcial; em outro lugar passa para a próxima tela.</p>
+        <p class="nota">No painel, <strong>toque</strong> nos códigos de falha para ver a lista e buscar o que cada um significa. <strong>Toque longo</strong>: sobre a marcha ou a tração alterna 4H e 4L; sobre o indicador de log liga ou desliga o log; sobre o hodômetro zera o parcial; em outro lugar passa para a próxima tela.</p>
       </div>
     </div>
 
@@ -512,7 +513,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
             <label class="campo"><span>Patinagem máx. do conversor (%)</span><input type="number" step="5" id="c-red-patin"></label>
           </div>
           <label class="campo"><span>Sinal da 4L lido do carro (manda na detecção)</span><select id="c-sinal-red"></select></label>
-          <p class="muted small">A Mitsubishi só troca 4H↔4L parada em N, então o app só muda o modo depois de uma parada de 2 s. A detecção precisa de alguns segundos numa marcha que só existe em 4L (a 2ª, por exemplo); só em 3ª da reduzida não dá para separar de 4H. Para sair do modo em que está, a relação medida não pode caber em nenhuma marcha desse modo nem com o conversor patinando até a patinagem máxima (o conversor só aumenta a relação medida). O toque longo na marcha continua valendo até a próxima parada. Com o sinal da 4L configurado e respondendo, ele manda e a detecção fica desligada.</p>
+          <p class="muted small">A Mitsubishi só troca 4H↔4L parada em N, então o app só muda o modo depois de uma parada de 2 s. A detecção precisa de alguns segundos numa marcha que só existe em 4L (a 2ª, por exemplo); só em 3ª da reduzida não dá para separar de 4H. Para trocar ou confirmar o modo, a relação medida não pode caber em nenhuma marcha do outro modo, nem com o conversor patinando até a patinagem máxima (o conversor só aumenta a relação medida). O toque longo na marcha continua valendo até a próxima parada. Com o sinal da 4L configurado e respondendo, ele manda e a detecção fica desligada.</p>
         </div>
         <div class="req" id="medidor">
           <h3>Medir as relações rodando</h3>
@@ -660,7 +661,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   <div id="p-inicio" class="p-inicio">
     <p id="p-carro" class="p-carro"></p>
     <button id="p-conectar" class="p-grande">Conectar e começar</button>
-    <p class="p-dica">Segure 3 s na tela para trocar de carro. Toque longo na marcha: 4H ou 4L. No hodômetro: laterais corrigem, toque longo zera, toque no meio abre o menu.</p>
+    <p class="p-dica">Segure 3 s na tela para trocar de carro. Toque longo na marcha ou na tração: 4H ou 4L. No hodômetro: laterais corrigem, toque longo zera, toque no meio abre o menu.</p>
   </div>
   <button id="p-alerta" class="p-alerta" hidden></button>
   <div id="p-menu" class="p-menu" hidden></div>
@@ -715,7 +716,7 @@ const fontePx = px => FONTES.filter(f => f <= px).pop() || 9;
 const alturaFonte = px => Math.round(fontePx(px) * 1.17);
 
 const PADRAO_W = {
-  cor: "#ffffff", cor_apagado: "#26262e", cor_rotulo: "#a0a0aa", cor_pisca: "#ef4444",
+  cor: "#ffffff", cor_apagado: "#26262e", cor_rotulo: "#a0a0aa", cor_pisca: "#ef4444", cor_4l: "#f97316",
   segmentos: 30, espaco: 4, altura_crescente: false, casas: 0, passo: 0, tamanho_fonte: 24, tamanho_rotulo: 18,
   fantasma: true, inclinacao: 0.08, espessura: 0.13, raio: 0, min: 0, max: 100, rotulo: "", unidade: "", texto: "",
   mostrar_gps: true, botoes: true, mostrar_tempo: true, usar_faixa_rpm: false, marcar_faixa: true, cor_faixa_rpm: false
@@ -848,6 +849,8 @@ function sinaisNecessarios() {
   const m = cfg.marcha || {}, R = cfgReduzida(m);
   if (R.sinal) s.add(R.sinal);
   if (R.auto && m.fonte !== "sinal") s.add(m.sinal_pedal || "pedal");
+  // A tração na tela precisa da conta da marcha, que usa rpm e velocidade
+  if ([...telasDe(vistaPainel() ? pgMon : pgEd)].some(t => (t.widgets || []).some(w => w.tipo === "tracao"))) { s.add(m.sinal_rpm || "rpm"); s.add(m.sinal_velocidade || "velocidade"); }
   for (let k = 0; k < 3; k++) for (const c of cfg.calculados || []) if (s.has(c.sinal)) depsCalc(c).forEach(d => s.add(d));
   return s;
 }
@@ -886,7 +889,8 @@ function desenharWidget(g, w) {
     const a = w.tipo === "valor" ? alertaAtivo(w, ok, v) : null;
     g.fillStyle = (a && a.fundo && (!a.piscar || p)) ? c565(a.fundo) : fundo; g.fillRect(0, 0, W, H);
     const pad = Math.max(4, Math.floor(H / 25)); let topo = 0;
-    const rotulo = val(w, "rotulo"), un = val(w, "unidade"), tr = val(w, "tamanho_rotulo");
+    const nd = w.tipo === "valor" && !ok && Motor.indisponivel(w.sinal);  // a central não tem o item: só "N/D", sem unidade
+    const rotulo = val(w, "rotulo"), un = nd ? "" : val(w, "unidade"), tr = val(w, "tamanho_rotulo");
     if (w.tipo === "valor" && (rotulo || un)) {
       topo = alturaFonte(tr) + 4;
       if (rotulo) texto(g, rotulo, pad, pad, tr, rot);
@@ -896,13 +900,8 @@ function desenharWidget(g, w) {
       if (reduzida()) { const bh = topo, bw = Math.max(56, bh * 2); rr(g, Math.floor((W - bw) / 2), pad - 2, bw, bh, 5, c565(val(w, "cor_pisca"))); texto(g, "4L", W / 2, pad - 2 + bh / 2, tr, "#000", "center", "middle"); }
       else texto(g, rotulo, W / 2, pad, tr, rot, "center");
     }
-    // A central informou que não tem este item: escreve em texto (os 7 segmentos não desenham letras)
-    if (w.tipo === "valor" && !ok && Motor.indisponivel(w.sinal)) {
-      const aw = W - 2 * pad, ah = H - topo - 2 * pad, s = ah >= 70 ? "NÃO DISPONÍVEL" : "N/D";
-      let f = FONTES[0]; for (const x of FONTES) if (larguraTxt(g, s, x) <= aw && alturaFonte(x) <= ah) f = x;
-      texto(g, s, W / 2, topo + pad + ah / 2, f, rot, "center", "middle");
-      g.restore(); return;
-    }
+    // A central informou que não tem este item: N/D em texto (os 7 segmentos não desenham a barra)
+    if (nd) { textoND(g, W, H, topo, pad, rot); g.restore(); return; }
     let txt, cor;
     if (w.tipo === "valor") { txt = formatar(w, ok, v); cor = !ok ? apag : c565(a ? a.cor : ((val(w, "cor_faixa_rpm") && corFaixaRpm(v)) || val(w, "cor"))); }
     else { const m = ok ? Math.round(v) : 0; txt = m < 0 ? "r" : (m > 0 && m < 10 ? String(m) : "-"); cor = ok ? c565(val(w, "cor")) : apag; }
@@ -922,7 +921,8 @@ function desenharWidget(g, w) {
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     const pad = Math.max(4, Math.floor(H / 20)), tr = val(w, "tamanho_rotulo"), tf = val(w, "tamanho_fonte");
     if (val(w, "rotulo")) texto(g, val(w, "rotulo"), pad, pad, tr, rot);
-    texto(g, `${formatar(w, ok, v)} ${val(w, "unidade")}`, W - pad, pad, tf, !ok ? apag : c565(a ? a.cor : val(w, "cor")), "right");
+    const ft = formatar(w, ok, v);
+    texto(g, ft === "N/D" ? ft : `${ft} ${val(w, "unidade")}`, W - pad, pad, tf, !ok ? apag : c565(a ? a.cor : val(w, "cor")), "right");
     const topo = Math.max(alturaFonte(tr), alturaFonte(tf)) + pad + 4, bx = pad, by = topo, bw = W - 2 * pad, bh = H - topo - pad;
     if (bh >= 4) {
       rr(g, bx, by, bw, bh, 4, apag);
@@ -941,6 +941,8 @@ function desenharWidget(g, w) {
     desenharHodometro(g, w, W, H, fundo, apag, rot);
   } else if (w.tipo === "falhas") {
     desenharFalhas(g, w, W, H, fundo, apag, rot);
+  } else if (w.tipo === "tracao") {
+    desenharTracao(g, w, W, H, fundo, apag, rot);
   } else if (w.tipo === "log") {
     // Bola vazia: não está gravando. Bola cheia (verde): gravando.
     g.fillStyle = fundo; g.fillRect(0, 0, W, H);
@@ -989,6 +991,34 @@ function desenharFalhas(g, w, W, H, fundo, apag, rot) {
     texto(g, f.codigo, x, y, esc.f, c565(f.pendente ? "#facc15" : "#f87171"));
   }
   if (mostra < ord.length) texto(g, `+${ord.length - mostra}`, pad + (mostra % esc.cols) * esc.cw, y0 + Math.floor(mostra / esc.cols) * esc.ch, esc.f, rot);
+}
+
+// Informação que não existe (a central não tem o item, o carro não tem reduzida): só "N/D", no maior tamanho que couber
+function textoND(g, W, H, topo, pad, cor) {
+  const aw = W - 2 * pad, ah = H - topo - 2 * pad;
+  let f = FONTES[0]; for (const x of FONTES) if (larguraTxt(g, "N/D", x) <= aw && alturaFonte(x) <= ah) f = x;
+  texto(g, "N/D", W / 2, topo + pad + ah / 2, f, cor, "center", "middle");
+}
+// Tração: 4H ou 4L, como a marcha está sendo calculada. Rótulo à esquerda e, conectado, de onde veio o modo à direita.
+const ORIGEM_TXT = { auto: "auto", manual: "toque", carro: "carro" };
+function estadoTracao() {
+  if (!cfgReduzida(cfg.marcha || {}).tem) return { nd: true };
+  if (Motor.ativo()) return Motor.valido("reduzida") ? { red: Marcha.red, origem: ORIGEM_TXT[Marcha.origem] } : {};
+  return $("#s-ecu").checked ? { red: $("#s-reduzida").checked } : {};
+}
+function desenharTracao(g, w, W, H, fundo, apag, rot) {
+  g.fillStyle = fundo; g.fillRect(0, 0, W, H);
+  const e = estadoTracao(), pad = Math.max(4, Math.floor(H / 25)), tr = val(w, "tamanho_rotulo"), rotulo = val(w, "rotulo");
+  const topo = rotulo || e.origem ? alturaFonte(tr) + 4 : 0;
+  if (rotulo) texto(g, rotulo, pad, pad, tr, rot);
+  if (e.origem) texto(g, e.origem, W - pad, pad, tr, rot, "right");
+  if (e.nd) { textoND(g, W, H, topo, pad, rot); return; }
+  const tem = e.red !== undefined, txt = !tem ? "--" : e.red ? "4L" : "4H";
+  const cor = !tem ? apag : c565(e.red ? val(w, "cor_4l") : val(w, "cor"));
+  const incl = val(w, "inclinacao"), esp = val(w, "espessura"), disp = H - topo - 2 * pad;
+  let hn = disp, lg = larg7(txt, hn, incl, esp);
+  if (lg > W - 2 * pad) { hn = Math.floor(hn * (W - 2 * pad) / lg); lg = larg7(txt, hn, incl, esp); }
+  des7(g, txt, Math.floor((W - lg) / 2), topo + pad + (disp - hn), hn, cor, apag, val(w, "fantasma"), incl, esp);
 }
 
 // Hodômetro: rótulo e avisos em cima, número no meio, comparação com o GPS embaixo, − e + nas laterais
@@ -1103,8 +1133,8 @@ function abrirAba(nome) {
 document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => abrirAba(b.dataset.aba)));
 
 // ---------------- telas e lista ----------------
-const NOMES_TIPO = { barra_rpm: "segmentos", valor: "número", marcha: "marcha", barra: "barra", texto: "texto", retangulo: "forma", status: "status", hodometro: "hodômetro", log: "log", falhas: "falhas" };
-const nomeWidget = w => w.rotulo || w.texto || (w.tipo === "barra_rpm" ? "Barra de rotação" : w.tipo === "marcha" ? "Marcha" : w.tipo === "status" ? "Status da ECU" : w.tipo === "retangulo" ? "Retângulo" : w.tipo === "hodometro" ? "Hodômetro" : w.tipo === "log" ? "Indicador de log" : w.sinal || w.tipo);
+const NOMES_TIPO = { barra_rpm: "segmentos", valor: "número", marcha: "marcha", barra: "barra", texto: "texto", retangulo: "forma", status: "status", hodometro: "hodômetro", log: "log", falhas: "falhas", tracao: "tração" };
+const nomeWidget = w => w.rotulo || w.texto || (w.tipo === "barra_rpm" ? "Barra de rotação" : w.tipo === "marcha" ? "Marcha" : w.tipo === "tracao" ? "Tração 4H/4L" : w.tipo === "status" ? "Status da ECU" : w.tipo === "retangulo" ? "Retângulo" : w.tipo === "hodometro" ? "Hodômetro" : w.tipo === "log" ? "Indicador de log" : w.sinal || w.tipo);
 function montarTelas() {
   const box = $("#telas-chips"); box.innerHTML = "";
   document.querySelectorAll("#ed-pg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.edpg === pgEd ? "true" : "false"));
@@ -1164,7 +1194,8 @@ const NOVOS = {
   hodometro: { w: 784, h: 250, rotulo: "PARCIAL", casas: 2, tamanho_rotulo: 24, cor: "#f8fafc", fundo: "#0d1117", cor_apagado: "#1a1f27", mostrar_gps: true, botoes: true },
   log: { w: 120, h: 120, rotulo: "LOG", tamanho_rotulo: 18, cor: "#22c55e", mostrar_tempo: true, fundo: "#0d1117" },
   // O sinal codigos_falha (quantidade) faz o app pedir à central e perceber quando aparece código novo
-  falhas: { w: 256, h: 148, sinal: "codigos_falha", rotulo: "CÓD. DE ERRO", tamanho_rotulo: 18, fundo: "#0d1117", cor_apagado: "#1a1f27" }
+  falhas: { w: 256, h: 148, sinal: "codigos_falha", rotulo: "CÓD. DE ERRO", tamanho_rotulo: 18, fundo: "#0d1117", cor_apagado: "#1a1f27" },
+  tracao: { w: 170, h: 122, rotulo: "TRAÇÃO", tamanho_rotulo: 18, cor: "#f8fafc", cor_4l: "#f97316", fundo: "#0d1117", cor_apagado: "#1a1f27" }
 };
 function adicionarWidget(n) {
   const ws = telaAtual().widgets; if (ws.length >= 24) { toast("Limite de 24 widgets por tela"); return; }
@@ -1214,7 +1245,7 @@ document.querySelectorAll("[data-add-item]").forEach(b => b.addEventListener("cl
 // ---------------- formulário do widget ----------------
 const ROTULOS = {
   x: "X", y: "Y", w: "Largura", h: "Altura", sinal: "Sinal", min: "Mínimo", max: "Máximo", segmentos: "Segmentos", espaco: "Espaço entre barras",
-  altura_crescente: "Barras crescentes", piscar_acima: "Piscar acima de (troca)", cor_pisca: "Cor do pisca", cor_apagado: "Cor apagada", fundo: "Fundo",
+  altura_crescente: "Barras crescentes", piscar_acima: "Piscar acima de (troca)", cor_pisca: "Cor do pisca", cor_4l: "Cor da 4L", cor_apagado: "Cor apagada", fundo: "Fundo",
   cor: "Cor", cor_rotulo: "Cor do rótulo", rotulo: "Rótulo", unidade: "Unidade", casas: "Casas decimais", passo: "Arredondar de", alinhamento: "Alinhamento",
   tamanho_rotulo: "Fonte do rótulo", tamanho_fonte: "Tamanho da fonte", fantasma: "Segmentos apagados visíveis", inclinacao: "Inclinação", espessura: "Espessura",
   texto: "Texto", raio: "Raio do canto", mostrar_gps: "Mostrar a comparação com o GPS", botoes: "Botões − e + nas laterais",
@@ -1231,7 +1262,8 @@ const CAMPOS = {
   status: [["tamanho_fonte"], ["fundo"]],
   hodometro: [["rotulo", "casas", "tamanho_rotulo"], ["mostrar_gps", "botoes", "fantasma"], ["cor", "cor_rotulo", "cor_apagado", "fundo"], ["inclinacao", "espessura"]],
   log: [["rotulo", "tamanho_rotulo"], ["mostrar_tempo"], ["cor", "cor_rotulo", "fundo"]],
-  falhas: [["rotulo", "tamanho_rotulo"], ["cor_rotulo", "cor_apagado", "fundo"]]
+  falhas: [["rotulo", "tamanho_rotulo"], ["cor_rotulo", "cor_apagado", "fundo"]],
+  tracao: [["rotulo", "tamanho_rotulo"], ["fantasma"], ["cor", "cor_4l", "cor_rotulo", "cor_apagado", "fundo"], ["inclinacao", "espessura"]]
 };
 const SINAIS_HOD = ["hodometro", "hodometro_total", "hodometro_gps", "hodometro_dif", "hodometro_dif_m"];
 const sinaisConhecidos = () => {
@@ -1252,7 +1284,7 @@ function campoCor(w, k) {
   return el("div", { class: "campo" }, el("span", {}, ROTULOS[k]), el("div", { class: "cor" }, c, t));
 }
 function campo(w, k) {
-  if (["cor", "fundo", "cor_apagado", "cor_rotulo", "cor_pisca"].includes(k)) return campoCor(w, k);
+  if (["cor", "fundo", "cor_apagado", "cor_rotulo", "cor_pisca", "cor_4l"].includes(k)) return campoCor(w, k);
   if (["altura_crescente", "fantasma", "mostrar_gps", "botoes", "mostrar_tempo", "usar_faixa_rpm", "marcar_faixa", "cor_faixa_rpm"].includes(k)) {
     const i = el("input", { type: "checkbox", id: `f-${k}` }); i.checked = !!val(w, k);
     i.addEventListener("change", () => { w[k] = i.checked; salvarRascunho(); });
@@ -1348,6 +1380,9 @@ function montarForm() {
     else form.append(el("div", { class: "grade" }, ...grupo.map(k => campo(w, k))));
   }
   if (w.tipo === "falhas") form.append(el("p", { class: "nota" }, "Mostra os códigos de falha lidos da central: confirmados em vermelho, pendentes em amarelo. No painel, toque no widget para ver a lista com o link que busca o significado de cada código."));
+  if (w.tipo === "tracao") form.append(el("p", { class: "nota" }, cfgReduzida(cfg.marcha || {}).tem
+    ? "Mostra 4H ou 4L, o modo que o app usa para calcular a marcha (4L na cor da 4L). Conectado, o canto direito diz de onde veio: auto (detecção), toque (toque longo) ou carro (sinal da 4L). No painel, o toque longo no widget alterna 4H e 4L até a próxima parada."
+    : "Este carro não tem reduzida configurada (Câmbio e pneu): o painel mostra N/D."));
   if (w.sinal && !sinaisConhecidos().includes(w.sinal)) form.append(el("p", { class: "bad-txt small" }, `O sinal "${w.sinal}" não existe na configuração do carro. O painel vai mostrar ---.`));
   const conf = el("div");
   form.append(el("div", { class: "linha" },
@@ -1683,6 +1718,23 @@ function garantirComp(l, c) {
   // O número com a quantidade de códigos vira o widget que mostra os próprios códigos
   for (const t of todasTelas(l)) for (const w of t.widgets || [])
     if (w.tipo === "valor" && w.sinal === "codigos_falha") { w.tipo = "falhas"; if (/^CÓD\. FALHA$/.test(w.rotulo || "")) w.rotulo = "CÓD. DE ERRO"; delete w.unidade; delete w.casas; delete w.cor; delete w.alertas; }
+  // Carro com reduzida: a tração (4H/4L) entra uma vez no Principal. Se o widget for apagado depois, não volta.
+  if (!l.tracao_incluida && cfgReduzida((c && c.marcha) || {}).tem) { l.tracao_incluida = true; incluirTracao(l); }
+}
+// Na tela de fábrica, as duas barras de baixo (388 de largura cada) abrem espaço para a tração embaixo da marcha:
+// colunas 330 | 170 | 268, alinhadas com velocidade, marcha e rpm. Tela mexida pelo usuário fica como está.
+function incluirTracao(l) {
+  if ((l.telas || []).some(t => (t.widgets || []).some(w => w.tipo === "tracao"))) return false;
+  const em = (w, x, y, W, H) => w.x === x && w.y === y && w.w === W && w.h === H;
+  for (const t of l.telas || []) {
+    const ws = t.widgets || [], a = ws.find(w => w.tipo === "barra" && em(w, 8, 350, 388, 122)), b = ws.find(w => w.tipo === "barra" && em(w, 404, 350, 388, 122));
+    if (!a || !b || ws.length >= 24) continue;
+    if (ws.some(w => w !== a && w !== b && w.x < 516 && w.x + w.w > 346 && w.y < 472 && w.y + w.h > 350)) continue;
+    a.w = 330; b.x = 524; b.w = 268;
+    ws.push({ tipo: "tracao", x: 346, y: 350, ...clone(NOVOS.tracao) });
+    return true;
+  }
+  return false;
 }
 const layoutFabrica = () => { const l = clone((PERFIS_PADRAO[carroId] || PERFIS_PADRAO.pajero).layout); garantirComp(l, cfg); return l; };
 
@@ -2448,10 +2500,12 @@ const Marcha = {
     if (vel < R.vel || rpm < R.rpm || (temPedal ? Motor.valor(sp) <= 3 : caindo)) return;
     const medida = this.relacao(m, rpm, vel), tol = Math.log(1 + (m.tolerancia_pct ?? 15) / 100);
     const eH = this.melhor(m, medida, 1).erro, eL = this.melhor(m, medida, m.reduzida).erro;
-    // Para sair do modo atual, nem com o conversor patinando ele pode explicar a relação. Em 4LLc, a 5ª da reduzida
-    // patinando 26% dá a mesma relação que a 2ª em 4H (L200, 21/11/2026, 11:44:28): isso não pode virar 4H.
-    if (eL <= R.folga && eH > tol && (this.red || !this.explica(m, medida, 1, R))) this.tL += dt;
-    else if (eH <= R.folga && eL > tol && (!this.red || !this.explica(m, medida, m.reduzida, R))) this.tH += dt;
+    // Só conta como prova a relação que o outro modo não explica nem com o conversor patinando, para trocar e também
+    // para confirmar o modo atual (a confirmação trava o modo até a próxima parada). L200: em 4LLc, a 5ª da reduzida
+    // patinando 26% parece a 2ª em 4H (21/11/2026, 11:44:28); em 4H, a 2ª patinando 28% parece a 4ª da reduzida
+    // (22/11/2026, 23:51:48), e confirmar a 4L ali travou o modo errado por 43 min.
+    if (eL <= R.folga && eH > tol && !this.explica(m, medida, 1, R)) this.tL += dt;
+    else if (eH <= R.folga && eL > tol && !this.explica(m, medida, m.reduzida, R)) this.tH += dt;
     const quer = this.tL >= R.evid && this.tL > 2 * this.tH ? true : (this.tH >= R.evid && this.tH > 2 * this.tL ? false : null);
     if (quer === null) return;
     // Decidido (trocou ou confirmou o modo): fica assim até a próxima parada
@@ -2590,7 +2644,7 @@ function alternarReduzida() {
 function toqueLongoPainel(p) {
   if (widgetEm(p, "log")) { Registro.alternar(); try { navigator.vibrate && navigator.vibrate(60); } catch {} }
   else if (widgetEm(p, "hodometro")) Hodometro.zerar();
-  else if (widgetEm(p, "marcha")) alternarReduzida();
+  else if (widgetEm(p, "marcha") || widgetEm(p, "tracao")) alternarReduzida();
   else if (telasDe(pgMon).length > 1) pIdx = (pIdx + 1) % telasDe(pgMon).length;
 }
 let menuT = null, menuInfoT = null;
@@ -2775,7 +2829,7 @@ function atualizarDiag() {
     ultimosBytes[b.req] = bytes;
     const cel = bytes.map((x, i) => el("span", { class: "byte" + (mud[i] && agora - mud[i] < 3000 ? " mudou" : "") }, x, el("small", {}, String.fromCharCode(65 + i))));
     const idade = idadeTxt(b.idade_ms), [cls, txt] =
-      b.indisponivel ? ["warn-txt", "não disponível neste carro (não é mais pedido)"]
+      b.indisponivel ? ["warn-txt", "N/D"]
       : b.idade_ms < 0 ? ["bad-txt", b.falhas >= 5 ? "a central não responde a este pedido" : "aguardando resposta"]
       : b.falhas >= 5 ? ["bad-txt", `parou de responder (última resposta há ${idade})`]
       : ["muted", `há ${idade}`];
@@ -2785,11 +2839,12 @@ function atualizarDiag() {
   const ts = $("#diag-sinais"); ts.innerHTML = "";
   ts.append(el("tr", {}, el("th", {}, "Sinal"), el("th", {}, "Valor"), el("th", {}, "Estado")));
   for (const [n, s] of Object.entries(d.sinais || {})) {
+    const nd = !s.ok && !d.exemplo && Motor.indisponivel(n);
     const [cls, txt] = s.ok ? ["ok-txt", "ok"] : d.exemplo ? ["bad-txt", "sem dado"]
-      : Motor.indisponivel(n) ? ["warn-txt", "não disponível neste carro"]
+      : nd ? ["warn-txt", "N/D"]
       : !Motor.pedidoAgora(n) ? ["muted", "não pedido agora (fora da página aberta)"]
       : ["bad-txt", "sem dado"];
-    ts.append(el("tr", {}, el("td", {}, n), el("td", { class: "num" }, s.ok ? `${+Number(s.v).toFixed(2)} ${s.u || ""}` : "---"), el("td", { class: cls }, txt)));
+    ts.append(el("tr", {}, el("td", {}, n), el("td", { class: "num" }, s.ok ? `${+Number(s.v).toFixed(2)} ${s.u || ""}` : nd ? "N/D" : "---"), el("td", { class: cls }, txt)));
   }
   montarSuporte();
 }
@@ -2819,7 +2874,7 @@ function montarSuporte() {
   tab.append(el("tr", {}, el("th", {}, "Item"), el("th", {}, "Pedido"), el("th", {}, "Situação")));
   for (const r of reqs) {
     const cab = String(r.cabecalho || "7DF").toUpperCase(), s = Motor.suporte[cab], pid = parseInt(r.pid, 16);
-    const [cls, txt] = s instanceof Set ? (s.has(pid) ? ["ok-txt", "fornece"] : ["warn-txt", "não disponível"]) : ["muted", s === null ? "não informado" : "verificando…"];
+    const [cls, txt] = s instanceof Set ? (s.has(pid) ? ["ok-txt", "fornece"] : ["warn-txt", "N/D"]) : ["muted", s === null ? "não informado" : "verificando…"];
     tab.append(el("tr", {}, el("td", {}, r.nome || r.pid), el("td", { class: "num", style: "white-space:nowrap" }, `${cab} 01 ${String(r.pid).toUpperCase()}`), el("td", { class: cls }, txt)));
   }
 }

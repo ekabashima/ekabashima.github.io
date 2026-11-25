@@ -1,6 +1,6 @@
 // Service worker do Car Monitor: guarda o app no celular para abrir sem internet.
 // A cada versão publicada, mude VERSAO para o celular trocar o cache antigo.
-const VERSAO = "2026-11-21.4";
+const VERSAO = "2026-11-22.1";
 const CACHE_APP = "painel-rally-app-" + VERSAO;
 const CACHE_FONTES = "painel-rally-fontes";
 const ARQUIVOS = [
